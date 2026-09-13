@@ -164,6 +164,36 @@ describe("RetrievalFusion and ContextBuilder", () => {
     expect(result[0]?.score).toBeGreaterThan(result[1]?.score ?? 0);
   });
 
+  it("applies a candidate's importance/confidence/recency/pinning bonus once, not once per branch it appears in", () => {
+    // All branch scores are 0 here so the only thing contributing to the
+    // final score is the candidate-level bonus — isolating it from the
+    // branch-fusion math. Appearing in three branches should not change
+    // that bonus at all.
+    const fusion = new RetrievalFusion();
+    const zeroScored = candidate({
+      semantic_score: 0,
+      keyword_score: 0,
+      graph_score: 0,
+      importance: 1,
+      confidence: 0,
+      recency: 0,
+      project_relevance: 0,
+      usage_frequency: 0,
+      pinned: false,
+    });
+    const expectedBonus = 1 * 0.2; // importance(1) * its 0.2 weight; every other factor is 0.
+
+    const seenOnce = fusion.fuse([{ branch: "semantic", candidates: [zeroScored] }]);
+    const seenThreeTimes = fusion.fuse([
+      { branch: "semantic", candidates: [zeroScored] },
+      { branch: "keyword", candidates: [zeroScored] },
+      { branch: "graph", candidates: [zeroScored] },
+    ]);
+
+    expect(seenOnce[0]?.score).toBeCloseTo(expectedBonus, 10);
+    expect(seenThreeTimes[0]?.score).toBeCloseTo(expectedBonus, 10);
+  });
+
   it("excludes inactive and sensitive candidates before context assembly", () => {
     const builder = new ContextBuilder();
     const result = builder.build({
@@ -211,5 +241,112 @@ describe("RetrievalFusion and ContextBuilder", () => {
     });
 
     expect(result).toMatchObject({ ok: false, error: { code: "NOVA-AI002" } });
+  });
+});
+
+describe("KnowledgeGraph alias tracking and manual merge/split", () => {
+  it("records and dedupes aliases, ignoring the node's own name", () => {
+    const graph = new KnowledgeGraph();
+    graph.addNode(project);
+
+    graph.addAlias("project-1", "the Nova project");
+    graph.addAlias("project-1", "the Nova project");
+    graph.addAlias("project-1", "Nova");
+
+    expect(graph.getNode("project-1")).toMatchObject({
+      ok: true,
+      value: { aliases: ["the Nova project"] },
+    });
+  });
+
+  it("resolves an exact match against a recorded alias but not against an inactive node", () => {
+    const graph = new KnowledgeGraph();
+    graph.addNode(project);
+    graph.addAlias("project-1", "the Nova project");
+
+    expect(graph.findByExactMatch("the Nova project")?.id).toBe("project-1");
+
+    graph.markInactive("project-1");
+    expect(graph.findByExactMatch("the Nova project")).toBeUndefined();
+  });
+
+  it("merges a duplicate node into a canonical one, re-pointing edges and preserving the alias", () => {
+    const graph = new KnowledgeGraph();
+    graph.addNode(project);
+    const duplicate: GraphNode = { id: "project-2", type: "Project", name: "NovaApp", properties: {}, active: true };
+    graph.addNode(duplicate);
+    graph.addNode(file);
+    graph.addEdge({ id: "edge-1", type: "belongs_to", from_node_id: "file-1", to_node_id: "project-2", weight: 1 });
+
+    const merged = graph.mergeNodes("project-1", "project-2");
+
+    expect(merged).toMatchObject({ ok: true, value: { aliases: ["NovaApp"] } });
+    expect(graph.getNode("project-2")).toMatchObject({ ok: true, value: { active: false } });
+    expect(graph.query({ node_id: "project-1" })).toMatchObject({
+      ok: true,
+      value: { nodes: [{ id: "file-1" }] },
+    });
+  });
+
+  it("rejects merging nodes of different ontology types", () => {
+    const graph = new KnowledgeGraph();
+    graph.addNode(project);
+    graph.addNode(tool);
+
+    expect(graph.mergeNodes("project-1", "tool-1")).toMatchObject({
+      ok: false,
+      error: { code: "NOVA-MEM002" },
+    });
+  });
+
+  it("drops a direct edge between the two merged nodes instead of turning it into a self-loop", () => {
+    const graph = new KnowledgeGraph();
+    graph.addNode(project);
+    const duplicate: GraphNode = {
+      id: "project-2",
+      type: "Project",
+      name: "NovaApp",
+      properties: {},
+      active: true,
+    };
+    graph.addNode(duplicate);
+    // A "these might be the same thing" edge recorded before the merge decision.
+    graph.addEdge({
+      id: "edge-related",
+      type: "related_to",
+      from_node_id: "project-1",
+      to_node_id: "project-2",
+      weight: 1,
+    });
+
+    graph.mergeNodes("project-1", "project-2");
+
+    const result = graph.query({ node_id: "project-1" });
+    expect(result).toMatchObject({ ok: true, value: { edges: [] } });
+    if (result.ok) {
+      expect(result.value.edges.some((edge) => edge.from_node_id === edge.to_node_id)).toBe(false);
+    }
+  });
+
+  it("splits an alias back out into its own node and moves the specified edges", () => {
+    const graph = new KnowledgeGraph();
+    graph.addNode(project);
+    graph.addAlias("project-1", "Kingston Connect");
+    graph.addNode(file);
+    graph.addEdge({ id: "edge-1", type: "belongs_to", from_node_id: "file-1", to_node_id: "project-1", weight: 1 });
+
+    const split = graph.splitNode(
+      "project-1",
+      "Kingston Connect",
+      { id: "project-3", type: "Project", name: "Kingston Connect", properties: {}, active: true },
+      ["edge-1"],
+    );
+
+    expect(split).toMatchObject({ ok: true, value: { id: "project-3" } });
+    expect(graph.getNode("project-1")).toMatchObject({ ok: true, value: { aliases: [] } });
+    expect(graph.query({ node_id: "project-3" })).toMatchObject({
+      ok: true,
+      value: { nodes: [{ id: "file-1" }] },
+    });
   });
 });

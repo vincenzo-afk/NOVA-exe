@@ -30,6 +30,20 @@ export interface GraphNode {
   readonly name: string;
   readonly properties: Readonly<Record<string, string | number | boolean>>;
   readonly active: boolean;
+  /**
+   * Alternate phrasings that previously resolved to this node
+   * (docs/04-memory/entity-resolution.md "Alias tracking"), so a later
+   * exact-match lookup on any of them short-circuits straight to this
+   * node without re-running semantic matching.
+   */
+  readonly aliases?: readonly string[];
+  /**
+   * Set when this node was produced by a "still ambiguous" resolution
+   * outcome (entity-resolution.md's dashed path) rather than a
+   * confirmed distinct entity, so it can be surfaced for later merge
+   * review rather than silently trusted as canonical.
+   */
+  readonly flaggedForMergeReview?: boolean;
 }
 
 export interface GraphEdge {
@@ -158,6 +172,140 @@ export class KnowledgeGraph {
     const updated = { ...node, active: false };
     this.nodes.set(nodeId, updated);
     return ok(updated);
+  }
+
+  /**
+   * Records a mention as an alias of an existing node
+   * (docs/04-memory/entity-resolution.md "Alias tracking"). Idempotent:
+   * re-adding an already-known alias, or one equal to the node's own
+   * name, is a no-op rather than an error.
+   */
+  addAlias(nodeId: string, alias: string): Result<GraphNode> {
+    const node = this.nodes.get(nodeId);
+    if (!node) {
+      return err({ code: "NOVA-MEM003", message: "Graph node does not exist.", retryable: false });
+    }
+    const existing = node.aliases ?? [];
+    if (alias === node.name || existing.includes(alias)) return ok(node);
+    const updated = { ...node, aliases: [...existing, alias] };
+    this.nodes.set(nodeId, updated);
+    return ok(updated);
+  }
+
+  /**
+   * Exact identifier match: node name or a recorded alias, matched
+   * case-sensitively per entity-resolution.md's "exact identifier
+   * match" step. Only considers active nodes — an inactive node is
+   * logically gone and a mention of its old name should fall through
+   * to semantic matching / new-node creation, not resurrect it.
+   */
+  findByExactMatch(mention: string, type?: GraphNodeType): GraphNode | undefined {
+    for (const node of this.nodes.values()) {
+      if (!node.active) continue;
+      if (type !== undefined && node.type !== type) continue;
+      if (node.name === mention || (node.aliases ?? []).includes(mention)) return node;
+    }
+    return undefined;
+  }
+
+  /** Active nodes available as entity-resolution candidates, optionally narrowed by type. */
+  activeNodes(type?: GraphNodeType): readonly GraphNode[] {
+    return [...this.nodes.values()].filter(
+      (node) => node.active && (type === undefined || node.type === type),
+    );
+  }
+
+  /**
+   * Manual merge of two nodes discovered to be duplicates
+   * (entity-resolution.md "Manual merge and split"). Every edge
+   * touching `duplicateId` is re-pointed to `canonicalId` — preserving
+   * which node originally contributed which relationship in the edge's
+   * `properties`-equivalent provenance is the caller's responsibility
+   * via the edge id it chooses to keep, since GraphEdge itself carries
+   * no free-form properties bag. The duplicate node is marked inactive
+   * (not deleted) so the audit trail stays traceable, and its aliases —
+   * plus its own name — become aliases of the canonical node so future
+   * mentions of either resolve to the same place. A direct edge
+   * between the two merged nodes is dropped rather than re-pointed,
+   * since re-pointing it would produce a self-loop — an edge shape
+   * `addEdge`'s own cycle check never permits to be created directly.
+   */
+  mergeNodes(canonicalId: string, duplicateId: string): Result<GraphNode> {
+    const canonical = this.nodes.get(canonicalId);
+    const duplicate = this.nodes.get(duplicateId);
+    if (!canonical || !duplicate) {
+      return err({ code: "NOVA-MEM003", message: "Graph node does not exist.", retryable: false });
+    }
+    if (canonical.type !== duplicate.type) {
+      return err({
+        code: "NOVA-MEM002",
+        message: "Cannot merge graph nodes of different ontology types.",
+        retryable: false,
+      });
+    }
+    for (const [edgeId, edge] of this.edges) {
+      const touchesDuplicate = edge.from_node_id === duplicateId || edge.to_node_id === duplicateId;
+      if (!touchesDuplicate) continue;
+      const repointedFrom = edge.from_node_id === duplicateId ? canonicalId : edge.from_node_id;
+      const repointedTo = edge.to_node_id === duplicateId ? canonicalId : edge.to_node_id;
+      if (repointedFrom === repointedTo) {
+        // A direct edge between the two nodes being merged (e.g. a
+        // "related_to" edge recorded when they were first flagged as
+        // possible duplicates) would become a self-loop once both
+        // endpoints collapse onto canonicalId — something
+        // `addEdge`'s own cycle check would never allow to be created
+        // directly. Drop it rather than leave that invalid state
+        // sitting in the graph.
+        this.edges.delete(edgeId);
+        continue;
+      }
+      this.edges.set(edgeId, { ...edge, from_node_id: repointedFrom, to_node_id: repointedTo });
+    }
+    const mergedAliases = new Set([...(canonical.aliases ?? []), ...(duplicate.aliases ?? []), duplicate.name]);
+    mergedAliases.delete(canonical.name);
+    const updatedCanonical = { ...canonical, aliases: [...mergedAliases] };
+    this.nodes.set(canonicalId, updatedCanonical);
+    this.nodes.set(duplicateId, { ...duplicate, active: false });
+    return ok(updatedCanonical);
+  }
+
+  /**
+   * Splits an incorrectly merged alias back out into its own node
+   * (entity-resolution.md "Manual merge and split"). Any edge whose id
+   * is listed in `edgeIdsToMove` is re-pointed from `sourceId` to the
+   * freshly created `newNode`; the alias text is removed from
+   * `sourceId` so future mentions of it resolve to the split-out node
+   * instead.
+   */
+  splitNode(
+    sourceId: string,
+    aliasToSplit: string,
+    newNode: GraphNode,
+    edgeIdsToMove: readonly string[],
+  ): Result<GraphNode> {
+    const source = this.nodes.get(sourceId);
+    if (!source) {
+      return err({ code: "NOVA-MEM003", message: "Graph node does not exist.", retryable: false });
+    }
+    if (!(source.aliases ?? []).includes(aliasToSplit)) {
+      return err({
+        code: "NOVA-MEM003",
+        message: "Alias is not recorded on the source node.",
+        retryable: false,
+      });
+    }
+    const created = this.addNode(newNode);
+    if (!created.ok) return created;
+    for (const edgeId of edgeIdsToMove) {
+      const edge = this.edges.get(edgeId);
+      if (!edge) continue;
+      if (edge.from_node_id === sourceId) this.edges.set(edgeId, { ...edge, from_node_id: newNode.id });
+      else if (edge.to_node_id === sourceId) this.edges.set(edgeId, { ...edge, to_node_id: newNode.id });
+    }
+    const remainingAliases = (source.aliases ?? []).filter((alias) => alias !== aliasToSplit);
+    const updatedSource = { ...source, aliases: remainingAliases };
+    this.nodes.set(sourceId, updatedSource);
+    return ok(created.value);
   }
 
   neighbors(nodeId: string): readonly GraphNode[] {

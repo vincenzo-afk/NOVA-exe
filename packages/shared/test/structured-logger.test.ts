@@ -117,4 +117,19 @@ describe("StructuredLogger", () => {
     expect(lines).toHaveLength(1);
     expect(lines[0]).toMatchObject({ event: "new.record", service: "test.service" });
   });
+
+  it("records() reads back what's currently on disk, and is empty before any write", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "nova-logs-"));
+    temporaryDirectories.push(directory);
+    const path = join(directory, "nova.jsonl");
+    const sink = new FileJsonlLogSink(path);
+
+    expect(sink.records()).toEqual([]);
+
+    const logger = new StructuredLogger({ service: "test.service", sink });
+    logger.info("first", {}, undefined, "2026-08-24T10:00:00.000Z");
+    logger.warning("second", {}, "corr-1", "2026-08-24T10:00:01.000Z");
+
+    expect(sink.records().map((record) => record.event)).toEqual(["first", "second"]);
+  });
 });

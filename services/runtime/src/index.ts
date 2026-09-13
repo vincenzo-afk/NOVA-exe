@@ -1,3 +1,4 @@
+export * from "./cli.js";
 export * from "./api-gateway.js";
 export * from "./distributed-scheduler.js";
 export * from "./distributed-task-coordinator.js";
@@ -89,6 +90,9 @@ export * from "./job-scheduler.js";
 export * from "./background-assistant.js";
 export * from "./plugin-discovery.js";
 export * from "./plugin-manager.js";
+export * from "./archive.js";
+export * from "./plugin-sdk.js";
+export * from "./device-connection-lifecycle.js";
 export * from "./groq-provider.js";
 export * from "./system-inventory.js";
 export * from "./configuration-store.js";
@@ -101,6 +105,7 @@ export {
   type GraphQueryResult,
   type RetrievalCandidate,
 } from "./knowledge-graph.js";
+export * from "./entity-resolution.js";
 export * from "./workspace-code-executor.js";
 export * from "./tool-registry.js";
 export * from "./workflow-engine.js";

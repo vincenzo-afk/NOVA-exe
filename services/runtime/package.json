@@ -5,6 +5,9 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": {
+    "nova": "dist/bin/nova.js"
+  },
   "dependencies": {
     "@nova/memory": "workspace:*",
     "@nova/observers": "workspace:*",

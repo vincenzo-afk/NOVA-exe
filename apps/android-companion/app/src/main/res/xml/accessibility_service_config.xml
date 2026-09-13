@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  App Control capability's Accessibility-Service tier
+  (docs/20-devices/android-companion.md). Scoped to the minimum this
+  fallback path actually needs: reading the active window's node tree
+  to find and click a target by text (AppController.perform), nothing
+  broader. eventTypes is empty on purpose — this is a call-and-response
+  action surface, not an observer stream (see NovaAccessibilityService's
+  comment); it doesn't need to subscribe to a continuous event feed.
+-->
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accessibilityFlags="flagRetrieveInteractiveWindows"
+    android:canRetrieveWindowContent="true"
+    android:description="@string/accessibility_service_description"
+    android:notificationTimeout="100" />

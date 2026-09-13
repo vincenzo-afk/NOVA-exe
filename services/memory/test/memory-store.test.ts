@@ -127,6 +127,38 @@ describe("MemoryStore", () => {
     expect(stored.supersededById).toBe(replacement.id);
   });
 
+  it("excludes superseded records from search by default, but includes them when explicitly asked", async () => {
+    const first = unwrap(
+      await store.writeRecent({
+        identityId: "identity-1",
+        sourceTaskId: "task-1",
+        contentRef: "prefers python for scripting",
+        confidence: 0.6,
+        schemaVersion: "1.0.0",
+      }),
+    );
+    const replacement = unwrap(
+      await store.writeRecent({
+        identityId: "identity-1",
+        sourceTaskId: "task-1",
+        contentRef: "prefers python for scripting, later corrected to rust",
+        confidence: 0.95,
+        schemaVersion: "1.0.0",
+      }),
+    );
+    unwrap(await store.supersedeRecent(first.id, replacement.id));
+
+    const defaultResults = unwrap(await store.search({ query: "python" }));
+    expect(defaultResults.map((result) => result.record_id)).toEqual([replacement.id]);
+
+    const historicalResults = unwrap(
+      await store.search({ query: "python", filters: { include_superseded: true } }),
+    );
+    expect(historicalResults.map((result) => result.record_id).sort()).toEqual(
+      [first.id, replacement.id].sort(),
+    );
+  });
+
   it("searches all memory tiers within the workspace and returns stable record summaries", async () => {
     const working = unwrap(
       await store.writeWorking({

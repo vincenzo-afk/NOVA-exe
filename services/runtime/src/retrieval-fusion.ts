@@ -20,43 +20,57 @@ const weights: Readonly<Record<RetrievalBranch, number>> = {
 };
 
 export class RetrievalFusion {
+  /**
+   * Fuses per-branch results into one ranked list. `memory-ranking.md`
+   * separates two kinds of factor: the five search methods' own scores
+   * (fused with the branch weights below, since a candidate found by
+   * several methods should score higher than one found by only one),
+   * and a fixed set of *candidate-level* factors — importance,
+   * confidence, recency, project relevance, usage frequency, explicit
+   * pinning — that describe the record itself, not which method found
+   * it. Those candidate-level factors are computed once per candidate,
+   * not once per branch: a candidate surfaced by three branches gets
+   * its branch score summed three times (that's the point — more
+   * corroborating methods should count for more), but its importance/
+   * confidence/pinning bonus must not also be tripled just because it
+   * happened to be found three ways. (An earlier version of this
+   * method added the full candidate-level bonus inside the per-branch
+   * loop, so a candidate appearing in N branches got that bonus N
+   * times — fixed here.)
+   */
   fuse(branches: readonly RetrievalBranchResult[]): RankedRetrievalResult[] {
-    const merged = new Map<string, RankedRetrievalResult>();
+    const branchContribution = new Map<string, number>();
+    const candidateById = new Map<string, RetrievalCandidate>();
     for (const branch of branches) {
       const branchWeight = weights[branch.branch];
       for (const candidate of branch.candidates) {
         if (candidate.inactive) {
           continue;
         }
-        const contribution = this.contribution(candidate, branch.branch, branchWeight);
-        const previous = merged.get(candidate.id);
-        if (previous) {
-          merged.set(candidate.id, {
-            ...previous,
-            score: Math.min(1, previous.score + contribution),
-          });
-        } else {
-          merged.set(candidate.id, { ...candidate, score: Math.min(1, contribution) });
-        }
+        const branchScore = candidate[`${branch.branch}_score` as keyof RetrievalCandidate];
+        const numericBranchScore = typeof branchScore === "number" ? branchScore : 0;
+        const existing = branchContribution.get(candidate.id) ?? 0;
+        branchContribution.set(candidate.id, existing + numericBranchScore * branchWeight);
+        if (!candidateById.has(candidate.id)) candidateById.set(candidate.id, candidate);
       }
     }
-    return [...merged.values()].sort((left, right) => right.score - left.score);
+
+    const results: RankedRetrievalResult[] = [];
+    for (const [id, candidate] of candidateById) {
+      const score = Math.min(1, (branchContribution.get(id) ?? 0) + this.candidateLevelBonus(candidate));
+      results.push({ ...candidate, score });
+    }
+    return results.sort((left, right) => right.score - left.score);
   }
 
-  private contribution(
-    candidate: RetrievalCandidate,
-    branch: RetrievalBranch,
-    branchWeight: number,
-  ): number {
-    const branchScore = candidate[`${branch}_score` as keyof RetrievalCandidate];
-    const numericBranchScore = typeof branchScore === "number" ? branchScore : 0;
-    const secondary =
+  private candidateLevelBonus(candidate: RetrievalCandidate): number {
+    return (
       candidate.importance * 0.2 +
       candidate.confidence * 0.15 +
       candidate.recency * 0.1 +
       candidate.project_relevance * 0.1 +
       Math.min(1, candidate.usage_frequency) * 0.05 +
-      (candidate.pinned ? 0.4 : 0);
-    return Math.min(1, numericBranchScore * branchWeight + secondary);
+      (candidate.pinned ? 0.4 : 0)
+    );
   }
 }

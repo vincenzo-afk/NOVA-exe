@@ -74,10 +74,31 @@ export class StateManager<TValue = unknown> {
 
     if (contradictionPending && query.allowActiveRecheck && this.activeRecheck) {
       const value = await this.activeRecheck(query.entityRef);
+      // The active recheck is a fresh, authoritative, on-demand OS
+      // query (docs/03-runtime/state-manager.md's "Active re-check"
+      // section) — it must be recorded as a new observation, not just
+      // returned once and forgotten. Without this, the very next
+      // query() call for this entity would recompute
+      // contradictionPending from the same stale, still-conflicting
+      // observations and see a contradiction again — defeating the
+      // "used sparingly" resource-cost rationale that section gives
+      // for not re-checking on every query. Confidence 1: a direct
+      // on-demand check is by definition the most authoritative signal
+      // available, not bound to whichever prior observation happened
+      // to be `latest`.
+      const recheckObservation: StateObservation<TValue> = {
+        entityRef: query.entityRef,
+        value,
+        observer: "active_recheck",
+        observedAt: new Date().toISOString(),
+        confidence: 1,
+        corroborated: false,
+      };
+      this.observe(recheckObservation);
       return ok({
         value,
-        confidence: latest.confidence,
-        resolvedAt: new Date().toISOString(),
+        confidence: recheckObservation.confidence,
+        resolvedAt: recheckObservation.observedAt,
         contradictionPending: false,
       });
     }

@@ -8,6 +8,38 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+/**
+ * Per docs/04-memory/table-contracts.md's `identities` row and
+ * docs/28-multi-device-protocol/10-identity-and-workspace.md's identity
+ * hierarchy (User -> Workspace -> ...): one row per NOVA identity/User.
+ * Typically exactly one row per running instance, since NOVA is
+ * explicitly not multi-user (docs/00-overview/non-goals.md) — but the
+ * table exists regardless, since `memory-storage.md`'s "Workspace
+ * scoping and isolation" section notes multiple independent
+ * workspaces/identities can coexist on one machine (separate OS user
+ * accounts each running their own NOVA instance) and the FK below is
+ * what FM-01-009's cross-identity access check is ultimately enforced
+ * against.
+ *
+ * Adding this table closes a second gap beyond just the missing table
+ * itself: `identityId` on RecentMemoryEntry/LongTermMemoryEntry/
+ * GraphNode was previously a plain string column with no FK, because
+ * there was nothing for it to reference. Now that `Identity` exists,
+ * those columns are wired to real `@relation`s below, matching
+ * `relationships.md`'s "DB foreign key" enforcement for each.
+ */
+model Identity {
+  id          String   @id
+  displayName String   @map("display_name")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  recentMemoryEntries   RecentMemoryEntry[]
+  longTermMemoryEntries LongTermMemoryEntry[]
+  graphNodes            GraphNode[]
+
+  @@map("identities")
+}
+
 model WorkingMemoryEntry {
   id             String   @id
   workspaceId    String   @map("workspace_id")
@@ -34,6 +66,8 @@ model RecentMemoryEntry {
   supersededById  String?  @map("superseded_by_id")
   createdAt       DateTime @default(now()) @map("created_at")
 
+  identity Identity @relation(fields: [identityId], references: [id])
+
   @@index([workspaceId, identityId, createdAt])
   @@index([supersededById])
   @@map("recent_memory_entries")
@@ -50,9 +84,109 @@ model LongTermMemoryEntry {
   schemaVersion   String   @map("schema_version")
   contentChecksum String   @map("content_checksum")
 
+  identity Identity @relation(fields: [identityId], references: [id])
+
   @@index([workspaceId, identityId, verifiedAt])
   @@index([sourceLineageId])
   @@map("long_term_memory_entries")
+}
+
+/**
+ * Knowledge Graph persistence per docs/04-memory/table-contracts.md and
+ * docs/04-memory/relationships.md. Was previously entirely absent from
+ * this schema — services/runtime/src/knowledge-graph.ts's KnowledgeGraph
+ * class held nodes/edges in an in-memory Map only, with no persistence
+ * at all, contradicting knowledge-graph.md's explicit statement that the
+ * graph model is "implement[ed] ... over relational tables (graph_nodes,
+ * graph_edges), not a separate graph-database product ... so the
+ * Knowledge Graph shares the same transactional and backup story as the
+ * rest of persisted state." AUDIT_REPORT_2026-09-11.md documents this
+ * gap; wiring KnowledgeGraph to read/write through these tables (rather
+ * than its current Map) is the follow-up this schema addition enables
+ * but does not itself complete — see that report for why a `prisma
+ * generate` + migration in this sandbox isn't possible.
+ *
+ * `identityId` is now a real `@relation` to the `Identity` model added
+ * below, closing what was previously a documented gap (an `identities`
+ * table `table-contracts.md` also names, which didn't exist when this
+ * comment was first written — see the `Identity` model's own comment).
+ * The `ON DELETE RESTRICT` relationships.md specifies for
+ * graph_edges -> graph_nodes is expressible today, since both sides
+ * exist here, and is declared below via Prisma's `onDelete: Restrict`.
+ */
+model GraphNode {
+  id            String   @id
+  workspaceId   String   @map("workspace_id")
+  identityId    String   @map("identity_id")
+  /** The fixed ontology type (User/Project/File/... — docs/04-memory/ontology.md). No free-text entity types. */
+  entityType    String   @map("entity_type")
+  canonicalName String   @map("canonical_name")
+  /** JSON-encoded, since each entity type has a different fixed property set (ontology.md) — same contentRef-as-JSON convention as TaskCheckpoint.stepHistoryJson below. */
+  propertiesJson String  @default("{}") @map("properties_json")
+  /** JSON-encoded array of alternate phrasings (docs/04-memory/entity-resolution.md "Alias tracking"). */
+  aliasesJson   String   @default("[]") @map("aliases_json")
+  confidence    Float
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  identity  Identity    @relation(fields: [identityId], references: [id])
+  edgesFrom GraphEdge[] @relation("EdgeFromNode")
+  edgesTo   GraphEdge[] @relation("EdgeToNode")
+
+  @@index([identityId, entityType, canonicalName])
+  @@map("graph_nodes")
+}
+
+model GraphEdge {
+  id           String   @id
+  workspaceId  String   @map("workspace_id")
+  fromNodeId   String   @map("from_node_id")
+  toNodeId     String   @map("to_node_id")
+  /** One of the fixed edge types (belongs_to/depends_on/... — ontology.md). */
+  relationType String   @map("relation_type")
+  confidence   Float
+  /** Weight used by RetrievalFusion's graph-search branch (services/runtime/src/retrieval-fusion.ts). */
+  weight       Float    @default(1)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  fromNode GraphNode @relation("EdgeFromNode", fields: [fromNodeId], references: [id], onDelete: Restrict)
+  toNode   GraphNode @relation("EdgeToNode", fields: [toNodeId], references: [id], onDelete: Restrict)
+
+  @@index([fromNodeId])
+  @@index([toNodeId])
+  @@map("graph_edges")
+}
+
+/**
+ * Per docs/04-memory/table-contracts.md and docs/04-memory/embeddings.md.
+ * One row per (record, model+version) pair, never mixed — `FM-01-019`
+ * (mixed embedding dimensions) is enforced at this table's insert path.
+ * `recordTable`/`recordId` together resolve the polymorphic reference
+ * `relationships.md` describes (an embedding can belong to a
+ * RecentMemoryEntry, a LongTermMemoryEntry, or a GraphNode) — Prisma has
+ * no native polymorphic relation, so, consistent with
+ * LongTermMemoryEntry.sourceLineageId's existing lineage relationship
+ * above, this is an application-layer reference, checked at write time,
+ * not a DB foreign key.
+ *
+ * `vector` is JSON-encoded (SQLite has no native vector column type).
+ * The ANN/HNSW index over it is explicitly *not* a table per
+ * table-contracts.md's "What is deliberately not a table" — it's a
+ * co-located index this row's data feeds, built and maintained outside
+ * Prisma's schema, not modeled here.
+ */
+model Embedding {
+  id            String   @id
+  recordId      String   @map("record_id")
+  recordTable   String   @map("record_table")
+  modelId       String   @map("model_id")
+  modelVersion  String   @map("model_version")
+  vectorJson    String   @map("vector_json")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([recordTable, recordId])
+  @@map("embeddings")
 }
 
 model TaskCheckpoint {

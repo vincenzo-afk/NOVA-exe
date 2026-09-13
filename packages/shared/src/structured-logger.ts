@@ -170,6 +170,15 @@ export class FileJsonlLogSink implements LogSink {
     this.prune(record.timestamp);
   }
 
+  /** Reads back everything currently on disk — the `nova logs` query path. */
+  public records(): readonly LogRecord[] {
+    if (!existsSync(this.path)) return [];
+    return readFileSync(this.path, "utf8")
+      .split("\n")
+      .filter((line) => line.length > 0)
+      .map((line) => JSON.parse(line) as LogRecord);
+  }
+
   private prune(now: string): void {
     if (!existsSync(this.path)) return;
     const cutoff = Date.parse(now) - this.retentionMs;

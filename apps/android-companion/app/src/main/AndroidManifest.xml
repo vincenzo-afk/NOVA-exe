@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Permission model per docs/20-devices/android-companion.md:
+  "Every capability above requires its corresponding Android runtime
+  permission, requested individually and revocable at any time from
+  Android Settings — NOVA never requests a bundled 'allow everything'
+  grant." Each <uses-permission> below maps 1:1 to one companion
+  capability; none is requested unless that capability is enabled by
+  the user (runtime request happens in CompanionPermissions, not here).
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Notification access capability. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Vision capability (camera + QR pairing scan). -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+
+    <!-- File access capability: Storage Access Framework only, no
+         broad storage permission (docs/20-devices/android-companion.md
+         "never blanket filesystem access"). No manifest permission is
+         required for SAF document-tree access. -->
+
+    <!-- Voice capability. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- Background operation: foreground service with a persistent,
+         user-visible notification whenever always-listening voice or
+         background notification capture is active. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <!-- Required by Android 10+ to run MediaProjection capture (ScreenCaptureManager). -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+
+    <!-- Pairing/sync transport (docs/28-multi-device-protocol/05-networking-and-discovery.md). -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <application
+        android:allowBackup="false"
+        android:label="@string/app_name"
+        android:theme="@style/Theme.NovaCompanion"
+        android:icon="@android:drawable/sym_def_app_icon">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:theme="@style/Theme.NovaCompanion">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Notification Listener Service: only receives events once the
+             user separately grants notification-listener access in
+             Android Settings; installing the app does not enable it. -->
+        <service
+            android:name=".NotificationCaptureService"
+            android:exported="false"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
+        <service
+            android:name=".CompanionForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="microphone|dataSync|mediaProjection" />
+
+        <!-- App Control's Accessibility-Service fallback tier. -->
+        <service
+            android:name=".NovaAccessibilityService"
+            android:exported="false"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config" />
+        </service>
+
+    </application>
+</manifest>

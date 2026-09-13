@@ -76,6 +76,40 @@ describe("StateManager", () => {
     });
   });
 
+  it("persists the active-recheck result at full confidence, not the stale contested observation's confidence, and a later query doesn't re-flag the contradiction", async () => {
+    const recheck = vi.fn(async () => ({ exists: true }));
+    const manager = new StateManager(recheck);
+    manager.observe(observation({ confidence: 0.5 }));
+    manager.observe(
+      observation({
+        value: { exists: false },
+        observer: "browser",
+        observedAt: "2026-08-21T10:00:03.000Z",
+        confidence: 0.6,
+      }),
+    );
+
+    const rechecked = await manager.query({
+      entityRef: "file:/workspace/report.txt",
+      allowActiveRecheck: true,
+    });
+    expect(rechecked).toMatchObject({ ok: true, value: { confidence: 1, contradictionPending: false } });
+
+    // A second query, even without permission to recheck again, should
+    // see the persisted recheck result and not resurrect the old
+    // contradiction between the two stale observations.
+    expect(recheck).toHaveBeenCalledTimes(1);
+    const followUp = await manager.query({
+      entityRef: "file:/workspace/report.txt",
+      allowActiveRecheck: false,
+    });
+    expect(followUp).toMatchObject({
+      ok: true,
+      value: { value: { exists: true }, confidence: 1, contradictionPending: false },
+    });
+    expect(recheck).toHaveBeenCalledTimes(1);
+  });
+
   it("does not treat disagreements outside the conflict window as provisional", async () => {
     const manager = new StateManager();
     manager.observe(observation());

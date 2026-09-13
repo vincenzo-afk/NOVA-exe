@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">NOVA Companion</string>
+    <string name="accessibility_service_description">Lets NOVA perform an action you\'ve asked for in a supported app when that app doesn\'t expose a direct link for it. Only active while you\'re asking NOVA to do something — this is not used to monitor your phone.</string>
+</resources>

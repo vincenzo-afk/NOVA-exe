@@ -36,6 +36,16 @@ export interface MemorySearchInput {
     readonly project?: string;
     readonly time_range?: { readonly start: string; readonly end: string };
     readonly entity_type?: string;
+    /**
+     * docs/04-memory/memory-conflict-resolution.md: "current retrieval
+     * and context assembly prioritize the current, superseding fact by
+     * default" — a superseded record stays reachable (Timeline Memory,
+     * docs/04-memory/timeline.md, or an explicit readRecord/readRecent
+     * by id) but should not resurface in ordinary search. Defaults to
+     * false; set true for an explicit historical/"did this ever
+     * change" query.
+     */
+    readonly include_superseded?: boolean;
   };
 }
 
@@ -232,6 +242,9 @@ export class MemoryStore {
       const project = input.filters?.project?.trim().toLocaleLowerCase();
       const entityType = input.filters?.entity_type?.trim().toLocaleLowerCase();
       const filtered = records
+        .filter(
+          (record) => input.filters?.include_superseded === true || record.status !== "SUPERSEDED",
+        )
         .filter((record) => record.content_ref.toLocaleLowerCase().includes(query))
         .filter(
           (record) =>
