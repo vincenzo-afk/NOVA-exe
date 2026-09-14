@@ -44,6 +44,11 @@ dependencies {
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("androidx.activity:activity-compose:1.9.3")
+    // Explicit dependency for CompanionApiClient.kt's coroutine-based networking
+    // (Dispatchers.IO / withContext) — already present transitively via the
+    // lifecycle/activity artifacts above, declared explicitly here since this
+    // is the first file in the app that imports it directly.
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     implementation(platform("androidx.compose:compose-bom:2024.11.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")

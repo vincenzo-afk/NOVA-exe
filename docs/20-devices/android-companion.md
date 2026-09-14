@@ -73,3 +73,6 @@ is no hidden background listening mode.
 - `docs/22-voice/voice-assistant.md` — voice capture and response
 - `docs/20-devices/ai-phone.md` — the longer-term "phone as primary
   device" extension of this companion
+- `docs/20-devices/spatial-perception.md` — the physical-world reasoning
+  layer built on top of this document's camera and screen capture
+  surfaces

@@ -130,6 +130,20 @@ export class DevicePairingManager {
     return device ? ok(device) : err(this.securityError("Device is not trusted."));
   }
 
+  /**
+   * Confirms a caller presenting [code] also holds the matching
+   * [channelToken] from that same offer, without exposing the offer's
+   * other fields. Used by companion-pairing-session.ts to gate the
+   * one companion-server.ts endpoint (sign-challenge) that must run
+   * *before* a device is trusted — the QR's channel_token is the only
+   * credential available at that point, since the device isn't
+   * registered yet.
+   */
+  public verifyChannelToken(code: string, channelToken: string): boolean {
+    const offer = this.offers.get(code);
+    return offer !== undefined && this.now() < offer.expires_at && offer.channel_token === channelToken;
+  }
+
   public listTrusted(): readonly TrustedDevice[] {
     return [...this.trusted.values()].map((device) => ({ ...device }));
   }

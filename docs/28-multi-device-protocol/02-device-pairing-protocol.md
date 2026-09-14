@@ -81,6 +81,24 @@ plain config file) and used to authenticate all subsequent sync
 - `docs/20-devices/remote-control.md` — the live-session layer built on
   top of an already-paired trust relationship
 
+## Implementation
+
+The protocol above is implemented end-to-end: `services/runtime/src/device-pairing.ts`
+(`DevicePairingManager`) owns the offer/challenge/trust state machine
+FM-26-006 requires; `services/runtime/src/companion-crypto.ts` provides
+the ECDH+HKDF session-key derivation that runs immediately after a
+successful challenge/response, so pairing produces not just a trust
+decision but a working encrypted channel; `services/runtime/src/companion-pairing-session.ts`
+and `companion-server.ts` expose the actual wire endpoints
+(`/v1/companion/pair/sign-challenge`, `/v1/companion/pair/complete`)
+the desktop side runs. `apps/android-companion/.../PairingManager.kt`
+(challenge/response verification) and `PairingTransport.kt` (the
+network exchange that calls those endpoints) are the Android-side
+counterpart — `PairingTransport.kt` is what closes the gap this
+document previously left implicit: `PairingManager.kt`'s crypto check
+was always correct, it simply had nothing driving real challenge/
+response bytes across an actual network connection until now.
+
 ## Where This Breaks
 
 Failure modes specific to this protocol area. Cross-referenced from `docs/25-failure-modes/FM-26-multi-device-protocol.md`, which indexes all multi-device failure entries in one place, and from `FM-10-desktop-android-distributed-sync.md` for the general distributed-systems failure classes this protocol area instantiates.

@@ -133,6 +133,10 @@ until a new ADR changes it.
 - `goals.md` — the concrete, in-scope targets by phase
 - `docs/01-product/project-scope.md` — the product-level restatement of
   this boundary for a non-engineering audience
+- `docs/04-memory/persistent-user-model.md` — restates and depends on the
+  "not fine-tuned on user data" exclusion while indexing every subsystem
+  that otherwise makes up NOVA's structured, retrieved-not-trained user
+  model
 - `docs/15-decisions/adr-0001-project-scope.md` — the original v1 ADR
 - `docs/15-decisions/adr-0008-v5-architecture-evolution.md` — the ADR
   that repealed/narrowed the items above

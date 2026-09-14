@@ -74,3 +74,6 @@ deregistration behavior.
   here
 - `docs/06-tools/mcp.md` — the analogous external-process trust model for
   MCP servers
+- `docs/16-extensibility/execution-backends.md` — the pluggable local/
+  Docker execution layer that `nova plugin test` runs against, sharing
+  this document's resource-limit and crash-isolation principles

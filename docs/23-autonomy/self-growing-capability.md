@@ -69,3 +69,7 @@ manually installed items, editable and removable the same way.
 - `strategy-evaluation.md` — the complementary comparison/retirement
   layer for when multiple strategies exist for the same recurring goal;
   this document covers acquisition only, not evaluating what's acquired
+- `skill-learning.md` — the fourth growth path: learning a reusable
+  procedure from a task NOVA already completed, rather than installing
+  or composing from existing tools; a proven learned skill converges
+  with this document's Composite Tool mechanism via `createPluginScaffold`

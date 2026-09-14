@@ -127,6 +127,21 @@ it would not be for a non-idempotent action.
 - `docs/04-memory/memory-lineage.md`, `memory-versioning.md` — conflict rules reused
 - `02-device-pairing-protocol.md`, `03-session-continuity-and-handoff.md`
 
+## Implementation
+
+`services/runtime/src/cross-device-sync.ts` (`CrossDeviceSyncManager`)
+implements this document's last-write-wins, field-level, category-
+prioritized merge logic against an injected `SyncTransport` — until
+now only exercised by test doubles. `services/runtime/src/companion-sync-store.ts`
+is the first real transport: an append-only encrypted-envelope log per
+paired device (`CompanionSyncBroker`) plus a `SyncTransport` factory
+wired to it, and `companion-server.ts` exposes it over
+`/v1/companion/sync/pull` and `/sync/push`. `apps/android-companion/.../DeviceSyncClient.kt`
+is a Kotlin mirror of `CrossDeviceSyncManager` (same merge algorithm,
+independently implemented) that talks to those endpoints, encrypting
+every payload with the AES-256-GCM key derived at pairing
+(`companion-crypto.ts` / `CompanionCrypto.kt`).
+
 ## Where This Breaks
 
 Failure modes specific to this protocol area. Cross-referenced from `docs/25-failure-modes/FM-26-multi-device-protocol.md`, which indexes all multi-device failure entries in one place, and from `FM-10-desktop-android-distributed-sync.md` for the general distributed-systems failure classes this protocol area instantiates.

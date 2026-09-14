@@ -19,6 +19,7 @@ class PairingManagerTest {
             desktopPublicKeyB64 = Base64.getEncoder().encodeToString(desktopKeys.public.encoded),
             channelToken = "token",
             expiresAtEpochMs = System.currentTimeMillis() + 60_000,
+            desktopBaseUrl = "http://192.168.1.10:4877",
         )
         val challenge = manager.generateChallenge()
         val signature = sign(impostorKeys.private, challenge)
@@ -36,6 +37,7 @@ class PairingManagerTest {
             desktopPublicKeyB64 = Base64.getEncoder().encodeToString(desktopKeys.public.encoded),
             channelToken = "token",
             expiresAtEpochMs = System.currentTimeMillis() + 60_000,
+            desktopBaseUrl = "http://192.168.1.10:4877",
         )
         val challenge = manager.generateChallenge()
         val signature = sign(desktopKeys.private, challenge)
@@ -53,6 +55,7 @@ class PairingManagerTest {
             desktopPublicKeyB64 = Base64.getEncoder().encodeToString(desktopKeys.public.encoded),
             channelToken = "token",
             expiresAtEpochMs = System.currentTimeMillis() - 1_000,
+            desktopBaseUrl = "http://192.168.1.10:4877",
         )
         val challenge = manager.generateChallenge()
         val signature = sign(desktopKeys.private, challenge)

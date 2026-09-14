@@ -1,5 +1,10 @@
 import { err, ok, type Result } from "@nova/shared";
 
+// "PhysicalObject" (docs/20-devices/spatial-perception.md) is a
+// physical-world entity type resolved from camera observations via
+// SpatialContext (spatial-context.ts), using this same graph and the
+// same EntityResolver every text mention already resolves through —
+// deliberate convergence, not a parallel store.
 export type GraphNodeType =
   | "User"
   | "Project"
@@ -11,7 +16,8 @@ export type GraphNodeType =
   | "Conversation"
   | "Person"
   | "Goal"
-  | "Device";
+  | "Device"
+  | "PhysicalObject";
 export type GraphEdgeType =
   | "belongs_to"
   | "depends_on"
@@ -99,6 +105,7 @@ const nodeTypes = new Set<GraphNodeType>([
   "Person",
   "Goal",
   "Device",
+  "PhysicalObject",
 ]);
 const edgeTypes = new Set<GraphEdgeType>([
   "belongs_to",

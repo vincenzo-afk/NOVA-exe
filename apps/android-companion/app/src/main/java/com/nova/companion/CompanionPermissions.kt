@@ -30,6 +30,10 @@ sealed class CompanionError(val code: String, val message: String) {
             "NOVA-SEC001",
             "Background $capabilityId requires a visible foreground service.",
         )
+
+    /** Network/transport-layer failure talking to companion-server.ts — distinct from a permission denial, which is a local, synchronous decision this app makes about itself. */
+    class TransportFailure(reason: String) :
+        CompanionError("NOVA-NET001", reason)
 }
 
 sealed class CompanionResult<out T> {

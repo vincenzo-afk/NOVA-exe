@@ -33,3 +33,9 @@ Screen-reader labels and reduced-motion behavior follow `docs/29-product/accessi
 ## Analytics
 
 Emits events per `docs/35-analytics/events.md` for: screen view, primary action taken, error encountered. No event includes raw user content — see `docs/29-product/privacy.md`.
+
+## Related documents
+
+- `docs/04-memory/persistent-user-model.md` — the full index of subsystems
+  whose records surface on this screen, and the correctability guarantee
+  this screen is the user-facing side of

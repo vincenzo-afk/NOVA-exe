@@ -119,3 +119,12 @@ settings, which defeats its purpose as a guarantee at all.
   this tiering
 - `docs/07-observers/` — the per-source observer permissions referenced above
 - `docs/06-tools/desktop-agent.md` — task-bound screen and desktop-control permissions
+- `docs/23-autonomy/skill-learning.md` — a learned skill re-requests every
+  permission it needs through this tiering at reuse time; it never
+  inherits or bypasses a grant by having been learned
+- `docs/16-extensibility/execution-backends.md` — backend selection
+  (local vs. containerized execution) is itself a risk-tier decision
+  routed through this document's confirmation flow
+- `docs/06-tools/authenticated-session-audit.md` — per-domain,
+  risk-tiered confirmation for actions taken inside the user's own
+  authenticated browser sessions

@@ -66,3 +66,7 @@ the weakest independent safety net if something goes wrong.
 - `docs/03-runtime/world-model.md` — the pre-action validation source
 - `docs/05-ai/hallucination-prevention.md` — the confirmation requirement
   for destructive actions at this tier
+- `docs/06-tools/computer-use-superiority.md` — why this tier's
+  pre-action revalidation, combined with the rest of the tier chain, is
+  a structural advantage over agents that treat simulated input as their
+  primary interface rather than their last resort

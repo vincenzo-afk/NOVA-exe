@@ -58,9 +58,23 @@ of them (`docs/00-overview/vision.md`). It has no kernel, no device
 driver layer, and no process-scheduling authority over anything but its
 own supervised services (`docs/02-architecture/system-architecture.md`).
 
+## NOVA vs. contemporary autonomous agents (2026)
+
+Distinct from the categorical comparisons above, NOVA is also
+positioned against a specific cohort of current-generation autonomous
+agents — GPT-6 Astra, Project Astra, OpenClaw, Manus, and Hermes
+Agent — each strong in a different dimension (OS-level operation,
+physical-world perception, task resilience, authenticated-session
+automation, and closed-loop skill learning, respectively). That
+comparison is dated, detailed, and tied to a concrete build plan rather
+than a general positioning statement, so it is tracked separately in
+`feature-gap-analysis.md` rather than here.
+
 ## Related documents
 
 - `docs/00-overview/vision.md` — the identity statement these comparisons
   support
 - `inspirations.md` — the design-pattern lineage behind NOVA's specific
   architectural choices
+- `feature-gap-analysis.md` — the dated, competitor-by-competitor gap
+  analysis and resulting build plan

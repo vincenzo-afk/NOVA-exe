@@ -72,3 +72,9 @@ depends on that provenance remaining traceable.
 - `ontology.md` — the node types being resolved against
 - `docs/05-ai/ambiguity-resolution.md` — the decision flow for uncertain
   matches
+- `docs/20-devices/spatial-perception.md` — the vision-domain analog of
+  this resolution pipeline, matching camera-identified objects to the
+  same graph nodes text mentions resolve to
+- `docs/23-autonomy/skill-learning.md` — reuses this document's
+  semantic-matching approach to match a new goal against a learned
+  skill's trigger description

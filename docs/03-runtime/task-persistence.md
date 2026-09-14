@@ -59,3 +59,12 @@ The memory test suite uses a real SQLite database and applies the repository
 migrations before exercising checkpoint creation, supersession, latest-state
 loading, and restart recovery. Runtime tests verify write-before-acknowledgment,
 startup restoration, and the `Executing`/`Verifying` to `Unverified` boundary.
+
+## Related documents
+
+- `docs/17-workflow/session-fork-rewind.md` — the user-facing fork operation
+  built on top of this same checkpoint data, without altering this
+  document's crash-recovery contract
+- `docs/23-autonomy/skill-learning.md` — the other consumer of a completed
+  execution's checkpoint history, extracting a reusable Skill from it once
+  the Verifier confirms success

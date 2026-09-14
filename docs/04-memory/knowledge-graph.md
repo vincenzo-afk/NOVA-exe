@@ -133,3 +133,6 @@ window has passed).
   once a node qualifies for deletion, distinct from becoming inactive
 - `docs/04-memory/memory-confidence.md` — the confidence model node
   updates follow
+- `docs/20-devices/spatial-perception.md` — camera-identified physical
+  objects converge on the same nodes this graph already uses for
+  text-mentioned entities

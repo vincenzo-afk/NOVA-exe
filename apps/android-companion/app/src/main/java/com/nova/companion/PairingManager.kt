@@ -29,6 +29,15 @@ data class PairingQrPayload(
     val desktopPublicKeyB64: String,
     val channelToken: String,
     val expiresAtEpochMs: Long,
+    /**
+     * The desktop's companion-server.ts base URL on the local network
+     * (e.g. "http://192.168.1.42:4877"), so the phone knows where to
+     * send the challenge and completed pairing request — added
+     * because the crypto handshake alone doesn't tell the phone how
+     * to reach the desktop; without this field pairing had no actual
+     * transport to run over.
+     */
+    val desktopBaseUrl: String,
 )
 
 sealed class PairingOutcome {
@@ -38,12 +47,12 @@ sealed class PairingOutcome {
 
 class PairingManager(private val mobileKeyPair: KeyPair = generateKeyPair()) {
 
-    /** Parses the QR payload. Expected format: `code|desktopPubKeyB64|token|expiresAtMs`. */
+    /** Parses the QR payload. Expected format: `code|desktopPubKeyB64|token|expiresAtMs|desktopBaseUrl`. */
     fun parseQrPayload(raw: String): PairingQrPayload? {
         val parts = raw.split("|")
-        if (parts.size != 4) return null
+        if (parts.size != 5) return null
         val expiresAt = parts[3].toLongOrNull() ?: return null
-        return PairingQrPayload(parts[0], parts[1], parts[2], expiresAt)
+        return PairingQrPayload(parts[0], parts[1], parts[2], expiresAt, parts[4])
     }
 
     /**
@@ -86,6 +95,9 @@ class PairingManager(private val mobileKeyPair: KeyPair = generateKeyPair()) {
     }
 
     fun mobilePublicKeyB64(): String = Base64.getEncoder().encodeToString(mobileKeyPair.public.encoded)
+
+    /** PKCS8 DER, base64 — used only locally for this device's own ECDH session-key derivation (CompanionCrypto.deriveSessionKey); never transmitted. */
+    fun mobilePrivateKeyB64(): String = Base64.getEncoder().encodeToString(mobileKeyPair.private.encoded)
 
     private fun decodePublicKey(b64: String): PublicKey? = try {
         val bytes = Base64.getDecoder().decode(b64)

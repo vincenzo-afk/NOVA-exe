@@ -89,3 +89,8 @@ Outbound sends likewise resolve the destination identity before invoking the ada
   addition of new channels
 - `docs/10-security/permissions.md` — confirmation-gate mapping onto
   each platform's native UI primitives
+- `docs/21-channels/channel-adapter-expansion.md` — the Slack/email/
+  Signal/iMessage/Matrix adapters built against this document's
+  unchanged interface
+- `docs/24-collaboration/specialist-delegation.md` — @mention routing to
+  a specific spawned agent, layered on top of this interface

@@ -74,3 +74,7 @@ rather than a new policy.
   communication mechanism
 - `docs/03-runtime/resource-manager.md` — shared-resource arbitration
 - `docs/09-ui/task-monitor.md` — multi-agent visibility
+- `docs/24-collaboration/specialist-delegation.md` — @mention channel
+  routing to a spawned agent, and the programmatic tool-call collapsing
+  fast path, both built on top of this document's coordination model
+  without altering it

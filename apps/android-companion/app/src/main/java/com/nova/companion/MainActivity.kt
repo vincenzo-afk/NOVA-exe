@@ -1,6 +1,7 @@
 package com.nova.companion
 
 import android.os.Bundle
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.material3.MaterialTheme
@@ -13,11 +14,17 @@ import com.nova.companion.ui.PermissionsScreen
 
 class MainActivity : ComponentActivity() {
 
-    private val permissionsManager = CompanionPermissionsManager(deviceId = "unpaired")
     private val pairingManager = PairingManager()
+    private val pairingTransport = PairingTransport(pairingManager)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Settings.Secure.ANDROID_ID is stable per app-install per device — good enough as this
+        // companion's device_id for pairing/sync/commands; it is not a durable cross-reinstall
+        // identity and isn't used as one anywhere in this transport.
+        val deviceId = Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID) ?: "unpaired"
+        val permissionsManager = CompanionPermissionsManager(deviceId = deviceId)
+
         setContent {
             MaterialTheme {
                 Surface {
@@ -26,7 +33,12 @@ class MainActivity : ComponentActivity() {
                         composable("pairing") {
                             PairingScreen(
                                 pairingManager = pairingManager,
-                                onPaired = { navController.navigate("permissions") },
+                                pairingTransport = pairingTransport,
+                                thisDeviceId = deviceId,
+                                onPaired = { session ->
+                                    CompanionSessionHolder.set(session)
+                                    navController.navigate("permissions")
+                                },
                             )
                         }
                         composable("permissions") {

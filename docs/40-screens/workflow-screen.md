@@ -33,3 +33,11 @@ Screen-reader labels and reduced-motion behavior follow `docs/29-product/accessi
 ## Analytics
 
 Emits events per `docs/35-analytics/events.md` for: screen view, primary action taken, error encountered. No event includes raw user content — see `docs/29-product/privacy.md`.
+
+## Related documents
+
+- `docs/40-screens/mission-control-dashboard.md` — the pinnable,
+  at-a-glance multi-agent view that complements this screen's full task
+  list, sharing the same tracing data source
+- `docs/17-workflow/session-fork-rewind.md` — the "fork from here" action
+  attached to this screen's per-checkpoint step history

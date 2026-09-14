@@ -88,3 +88,6 @@ higher tiers happen to be unavailable for those applications.
 - `docs/05-ai/tool-selection.md` — selection within a tier
 - `docs/03-runtime/permission-manager.md` — the gate applied uniformly
   across all tiers
+- `docs/06-tools/computer-use-superiority.md` — why this tier ordering,
+  combined with verification and state revalidation, is the competitive
+  argument for NOVA's PC control versus agents with no comparable tiering

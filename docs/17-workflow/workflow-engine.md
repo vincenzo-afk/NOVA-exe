@@ -143,3 +143,14 @@ The engine emits structured local diagnostics for the first failed branch and ea
   Rollback nodes invoke
 - `docs/10-security/permissions.md` — the per-step confirmation model
   Human approval nodes complement, not replace
+- `docs/17-workflow/session-fork-rewind.md` — the fork-and-compare
+  operation built on this engine's existing checkpoint shape
+- `docs/17-workflow/web-app-scaffold-template.md` — a concrete,
+  first-class workflow definition proving this engine's multi-stage,
+  verified-per-node execution against a real deliverable
+- `docs/03-runtime/long-horizon-execution.md` — the multi-hour task
+  budget class and progress-reporting cadence this engine is configured
+  against for sustained execution
+- `docs/24-collaboration/specialist-delegation.md` — the fast path that
+  skips a Planner round-trip per node for a pipeline whose full shape is
+  known upfront
