@@ -62,3 +62,4 @@ data lifecycle in `docs/04-memory/memory-lifecycle.md`.
   extends
 - `docs/18-providers/provider-interface.md` — shared Vision domain
   interface
+- `docs/20-devices/physical-environment-integration.md` — the provider-pattern integration for the companion phone's surrounding physical environment, distinct from this document's phone-screen-specific pipeline

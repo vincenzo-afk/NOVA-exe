@@ -79,3 +79,4 @@ promotion, summarization, expiry — is fully specified in
 - `knowledge-graph.md`, `ontology.md` — the graph this architecture feeds
 - `retrieval-engine.md` — how these tiers are queried together
 - `table-contracts.md`, `relationships.md`, `indexes.md`, `transactions.md`, `seed-data.md` — the relational schema implementing these tiers at the database layer
+- `docs/04-memory/project-knowledge-base.md` — a deliberately separate retrieval index for external corpora (codebases, issue trackers) too large and fast-changing to fit this architecture's own design assumptions

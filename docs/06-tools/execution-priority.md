@@ -91,3 +91,4 @@ higher tiers happen to be unavailable for those applications.
 - `docs/06-tools/computer-use-superiority.md` — why this tier ordering,
   combined with verification and state revalidation, is the competitive
   argument for NOVA's PC control versus agents with no comparable tiering
+- `docs/06-tools/os-system-control.md`, `docs/09-ui/quick-input-surfaces.md` — the hotkey/launcher and system/media-control surfaces routed through this tier chain

@@ -154,3 +154,4 @@ The engine emits structured local diagnostics for the first failed branch and ea
 - `docs/24-collaboration/specialist-delegation.md` — the fast path that
   skips a Planner round-trip per node for a pipeline whose full shape is
   known upfront
+- `docs/17-workflow/workflow-recording-and-replay.md` — user-initiated macro capture that replays through this engine, storage-compatible with `docs/23-autonomy/skill-learning.md`

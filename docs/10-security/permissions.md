@@ -128,3 +128,4 @@ settings, which defeats its purpose as a guarantee at all.
 - `docs/06-tools/authenticated-session-audit.md` — per-domain,
   risk-tiered confirmation for actions taken inside the user's own
   authenticated browser sessions
+- `docs/10-security/adaptive-trust.md` — the learned confirmation-frequency layer that adapts within these tiers without ever changing them

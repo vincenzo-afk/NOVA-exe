@@ -24,6 +24,18 @@ include:
   configurable lookahead window, an email from a flagged sender/thread
   arriving, a CI/build failure observed (`docs/07-observers/`).
 - **Explicit request** — "get me ready for tomorrow," run on demand.
+- **Ambient wake-word-free detection** — a locally-processed acoustic
+  classifier (not full speech-to-text) running only within a narrow,
+  user-configured time window (e.g., 6–10am) listens for a small,
+  fixed set of greeting phrases ("good morning," "morning NOVA") and
+  triggers the same scheduled-job path as the time-based trigger above
+  — it does not run outside that window, and it is a distinct opt-in
+  from general voice-assistant wake-word listening
+  (`docs/22-voice/voice-assistant.md`), off by default. Detection
+  happens entirely on-device; no continuous audio leaves the device or
+  is persisted — only the binary "greeting detected" event reaches the
+  Job Scheduler, consistent with the Observer framework's
+  metadata-not-content default (`docs/07-observers/`).
 
 ## Briefing composition
 
@@ -82,3 +94,5 @@ new channel or observer permission.
   for timing/frequency
 - `docs/10-security/permissions.md` — confirmation gate preserved for any
   action surfaced in a briefing
+- `docs/23-autonomy/attention-and-communication-management.md` — the proactive-suppression channel this document's briefing mechanism shares with focus mode
+- `docs/23-autonomy/context-aware-suggestions.md` — the event-driven, in-the-moment suggestion engine that fires alongside this document's scheduled briefings, distinct in trigger model

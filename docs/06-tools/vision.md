@@ -83,3 +83,4 @@ tier could still apply.
   identification
 - `docs/00-overview/non-goals.md` — the scope restriction this tier
   enforces
+- `docs/06-tools/visual-guidance-and-screen-qa.md` — the read-only Q&A and pointer-overlay capability built alongside this tier without loosening its allow-list restriction

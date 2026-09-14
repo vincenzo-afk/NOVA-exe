@@ -119,3 +119,5 @@ The wake-word detector is always local and is not represented as a cloud-selecta
 - `docs/20-devices/android-companion.md` — mobile voice capture
 - `docs/20-devices/ai-phone.md` — voice as the primary phone interface
   at full maturity
+- `docs/06-tools/content-interaction-and-narration.md` — document/article narration reusing this document's TTS synthesis unchanged
+- `docs/06-tools/os-system-control.md`, `docs/09-ui/quick-input-surfaces.md` — the system/media controls and quick capture reachable by voice through this pipeline

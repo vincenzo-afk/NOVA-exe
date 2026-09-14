@@ -84,3 +84,4 @@ Not every competitor feature is worth having:
 - `comparisons.md` — the general categorical positioning this document extends with specific, dated competitor detail
 - `inspirations.md` — design-pattern lineage, distinct from competitive gap-closing
 - `docs/00-overview/non-goals.md` — the boundary that determines what NOT to copy
+- `agi-capability-checklist.md` — the follow-up capability-by-capability checklist covering a broader, non-competitor-specific feature list

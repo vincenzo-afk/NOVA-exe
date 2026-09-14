@@ -57,3 +57,4 @@ over time, without requiring manual configuration of favorites.
 - `docs/05-ai/deterministic-first.md` — the resolution path this surface
   disproportionately exercises
 - `docs/04-memory/memory-ranking.md` — suggestion ranking factors
+- `docs/09-ui/quick-input-surfaces.md` — the OS-wide global hotkey trigger that opens directly into this same resolution pipeline

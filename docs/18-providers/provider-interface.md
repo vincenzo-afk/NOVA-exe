@@ -158,3 +158,4 @@ provider remains, in which case the typed error propagates.
 - `provider-routing.md` — selection and fallback policy
 - `docs/16-extensibility/plugin-architecture.md` — the shared plugin
   substrate providers are built on
+- `docs/20-devices/physical-environment-integration.md` — smart-home, wearable, and external-feed integrations following this document's pattern

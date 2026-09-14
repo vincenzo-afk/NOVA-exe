@@ -70,3 +70,5 @@ the weakest independent safety net if something goes wrong.
   pre-action revalidation, combined with the rest of the tier chain, is
   a structural advantage over agents that treat simulated input as their
   primary interface rather than their last resort
+- `docs/09-ui/quick-input-surfaces.md` — text expansion's use of this tier's input-injection mechanism, the one case where the lowest tier is the only viable option
+- `docs/17-workflow/workflow-recording-and-replay.md` — taps this tier's own action instrumentation as a recording source

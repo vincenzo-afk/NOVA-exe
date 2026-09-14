@@ -89,3 +89,7 @@ A new subsystem or store added to the system must have an entry added
 to this document's tables in the same change — an undocumented failure
 path is exactly the ambiguity Section 8 of the master outline exists to
 close.
+
+## Related documents
+
+- `failure-pattern-analysis.md` — the cross-incident detection layer built on top of this document's per-incident decision flow, unchanged by it

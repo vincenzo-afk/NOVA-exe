@@ -78,3 +78,4 @@ logged.
 - `docs/00-overview/non-goals.md` — the "not fine-tuned" boundary this
   preserves exactly
 - `docs/19-setup/configuration-system.md` — inspection/reset surface
+- `docs/23-autonomy/context-aware-suggestions.md` — the event-driven trigger layer whose outcomes feed this document's proactive-timing adaptation
