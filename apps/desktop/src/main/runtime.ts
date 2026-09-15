@@ -9,11 +9,13 @@ import {
   Planner,
   RuntimeApplication,
   Verifier,
+  type CapabilityRegistry,
   type NovaConfiguration,
   type RuntimeApplicationOptions,
 } from "@nova/runtime";
 import { openDesktopPersistence } from "./persistence.js";
 import { createDesktopCapabilityRegistry } from "./capability-catalog.js";
+import { setupLlmProvider, type LlmProviderSetup } from "./llm-provider-setup.js";
 import {
   createDesktopAccessibilityDefinition,
   createDesktopAccessibilityTool,
@@ -95,10 +97,24 @@ export async function createDesktopRuntime(
       service: "desktop.runtime",
       sink: new FileJsonlLogSink(join(options.userDataPath, "logs", "nova.jsonl")),
     });
+  const registeredTools = [
+    createDesktopScreenCaptureDefinition(),
+    createDesktopAccessibilityDefinition(),
+  ];
+  // Wires Tier-0 #1/#2/#4 together: a real vault-backed credential store, a
+  // real Anthropic provider (once a key is saved), and the llmPlanner that
+  // actually gets passed to Planner below — previously `new Planner({
+  // deterministic: new Map() })` had no model fallback at all, so every task
+  // with no exact deterministic match failed outright.
+  const llmProviderSetup = setupLlmProvider({
+    userDataPath: options.userDataPath,
+    registeredTools,
+    logger,
+  });
   return new RuntimeApplication({
     configuration: desktopConfiguration,
     permissionStore: new PermissionGrantStore({ initial: desktopPermissions }, logger),
-    planner: new Planner({ deterministic: new Map() }),
+    planner: new Planner({ deterministic: new Map(), llmPlanner: llmProviderSetup.llmPlanner }),
     executor: new Executor(
       new PermissionManager(
         {
@@ -120,8 +136,12 @@ export async function createDesktopRuntime(
       undefined,
       logger,
     ),
-    verifier: new Verifier(logger),
-    capabilityRegistry: createDesktopCapabilityRegistry(logger),
+    verifier: new Verifier(logger, { toolRegistry: llmProviderSetup.toolRegistry }),
+    capabilityRegistry: registerConfiguredProviders(
+      createDesktopCapabilityRegistry(logger),
+      llmProviderSetup,
+      logger,
+    ),
     persistence: persistence.checkpointStore,
     taskSchedulerOptions: desktopTaskSchedulerOptions,
     memoryStore: persistence.memoryStore,
@@ -154,9 +174,28 @@ export async function createDesktopRuntime(
       : { mouseIdleThresholdMs: options.mouseIdleThresholdMs }),
     observationIndexer:
       options.observationIndexer ?? new ObservationIndexer(persistence.memoryStore),
-    registeredTools: [
-      createDesktopScreenCaptureDefinition(),
-      createDesktopAccessibilityDefinition(),
-    ],
+    registeredTools,
   });
+}
+
+/**
+ * Registers whatever provider `setupLlmProvider` actually built against
+ * the "text-generation" capability slot — previously all 9 declared
+ * capability slots had zero providers registered, regardless of whether
+ * a provider existed in code, because nothing ever called `.register()`.
+ */
+function registerConfiguredProviders(
+  registry: CapabilityRegistry,
+  llmProviderSetup: LlmProviderSetup,
+  logger: StructuredLogger,
+): CapabilityRegistry {
+  if (!llmProviderSetup.provider) return registry;
+  const registered = registry.register("text-generation", llmProviderSetup.provider);
+  if (!registered.ok) {
+    logger.warning("desktop_runtime.provider_registration_failed", {
+      capability_id: "text-generation",
+      error: registered.error.message,
+    });
+  }
+  return registry;
 }

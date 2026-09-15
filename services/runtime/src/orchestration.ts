@@ -1,6 +1,7 @@
 import { err, ok, type ErrorInfo, type Result, type StructuredLogger } from "@nova/shared";
 import { z } from "zod";
 import type { ResourceManager } from "./resource-manager.js";
+import type { ToolRegistry } from "./tool-registry.js";
 
 export type RiskTier = "read_only" | "reversible_write" | "destructive_irreversible";
 export type ExecutionTier =
@@ -371,11 +372,30 @@ export class Executor {
   }
 }
 
+/**
+ * A minimal, structural view of `WorldModel` (`services/state/src/world-model.ts`)
+ * — just the read accessors `Verifier` needs for secondary corroboration.
+ * Declared locally rather than importing the concrete class so `orchestration.ts`
+ * doesn't take on a hard dependency on `@nova/state` merely to type a parameter
+ * — any object shaped like this (the real `WorldModel`, or a test double) works.
+ */
+export interface WorldModelSnapshotSource {
+  runningApplications(): readonly { readonly id: string; readonly name: string }[];
+  focus(): { readonly window_id?: string; readonly application_id?: string } | null;
+}
+
 export class Verifier {
   private readonly logger: StructuredLogger | undefined;
+  private readonly toolRegistry: ToolRegistry | undefined;
+  private readonly worldModel: WorldModelSnapshotSource | undefined;
 
-  constructor(logger?: StructuredLogger) {
+  constructor(
+    logger?: StructuredLogger,
+    options?: { readonly toolRegistry?: ToolRegistry; readonly worldModel?: WorldModelSnapshotSource },
+  ) {
     this.logger = logger;
+    this.toolRegistry = options?.toolRegistry;
+    this.worldModel = options?.worldModel;
   }
 
   verify(step: ExecutionStep, result: ExecutionResult): Result<VerificationVerdict> {
@@ -412,13 +432,188 @@ export class Verifier {
       });
     }
 
+    // The tool itself declares which evidence type its actions actually
+    // produce (RegisteredAction.verification_signal) — evidence of a
+    // different type than declared is itself a signal something is wrong
+    // (a misconfigured tool, or a result routed to the wrong verifier path),
+    // not something to treat as valid just because it isn't literally "none".
+    const declaration = this.lookupDeclaration(step);
+    if (declaration && declaration.verification_signal !== result.evidence.type) {
+      return this.record(step, {
+        step_id: step.step_id,
+        outcome: "unverified",
+        confidence: 0.2,
+        verification_method: "ground_truth",
+        explanation: `Action '${step.action_id}' declares verification_signal '${declaration.verification_signal}' but evidence of type '${result.evidence.type}' was returned.`,
+      });
+    }
+
+    const inspected = this.inspectEvidence(step, result.evidence);
+    const corroborated = this.corroborateWithWorldModel(step, inspected);
     return this.record(step, {
       step_id: step.step_id,
-      outcome: "verified",
-      confidence: 1,
-      verification_method: "ground_truth",
-      explanation: "Ground-truth evidence confirms the step result.",
+      outcome: corroborated.outcome,
+      confidence: corroborated.confidence,
+      verification_method: corroborated.verification_method,
+      explanation: corroborated.explanation,
     });
+  }
+
+  /**
+   * Actually inspects `evidence.value` rather than only checking that
+   * *some* non-"none" evidence was supplied — a nonzero exit code or a 5xx
+   * API response reported alongside `status: "success"` is exactly the
+   * false-success case this project's own verification principle
+   * (`docs/03-runtime/verifier.md`: a false "success" is worse than a
+   * visible failure) exists to catch, and the previous implementation
+   * could not catch it because it never looked at `value` at all.
+   */
+  private inspectEvidence(
+    step: ExecutionStep,
+    evidence: ExecutionEvidence,
+  ): { outcome: VerificationOutcome; confidence: number; explanation: string } {
+    switch (evidence.type) {
+      case "exit_code": {
+        if (typeof evidence.value !== "number") {
+          return {
+            outcome: "unverified",
+            confidence: 0.1,
+            explanation: "exit_code evidence did not contain a numeric exit code.",
+          };
+        }
+        if (evidence.value === 0) {
+          return { outcome: "verified", confidence: 1, explanation: "Process exited with code 0." };
+        }
+        return {
+          outcome: "failed",
+          confidence: 1,
+          explanation: `Process exited with non-zero code ${evidence.value}, contradicting a reported success.`,
+        };
+      }
+      case "api_response": {
+        const status = readStatusCode(evidence.value);
+        if (status === undefined) {
+          return {
+            outcome: "unverified",
+            confidence: 0.2,
+            explanation: "api_response evidence did not contain a recognizable status code.",
+          };
+        }
+        if (status >= 200 && status < 300) {
+          return { outcome: "verified", confidence: 1, explanation: `API responded with status ${status}.` };
+        }
+        return {
+          outcome: "failed",
+          confidence: 1,
+          explanation: `API responded with status ${status}, contradicting a reported success.`,
+        };
+      }
+      case "file_hash": {
+        if (typeof evidence.value !== "string" || evidence.value.length === 0) {
+          return {
+            outcome: "unverified",
+            confidence: 0.1,
+            explanation: "file_hash evidence did not contain a hash value.",
+          };
+        }
+        const expected = step.parameters["expected_file_hash"];
+        if (typeof expected === "string") {
+          return expected === evidence.value
+            ? { outcome: "verified", confidence: 1, explanation: "File hash matches the expected hash." }
+            : {
+                outcome: "failed",
+                confidence: 1,
+                explanation: "File hash does not match the expected hash — the file's actual content differs from what was planned.",
+              };
+        }
+        // A hash was produced, but nothing declared what it should have been —
+        // this confirms *a* file exists, not that it's the *right* one.
+        return {
+          outcome: "verified",
+          confidence: 0.6,
+          explanation: "A file hash was produced, but no expected_file_hash was declared to compare it against.",
+        };
+      }
+      case "accessibility_state": {
+        if (typeof evidence.value !== "object" || evidence.value === null) {
+          return {
+            outcome: "unverified",
+            confidence: 0.1,
+            explanation: "accessibility_state evidence did not contain a state object.",
+          };
+        }
+        const expected = step.parameters["expected_state"];
+        if (typeof expected === "object" && expected !== null) {
+          const actual = evidence.value as Record<string, unknown>;
+          const mismatches = Object.entries(expected as Record<string, unknown>).filter(
+            ([key, value]) => actual[key] !== value,
+          );
+          return mismatches.length === 0
+            ? { outcome: "verified", confidence: 1, explanation: "Accessibility state matches every expected field." }
+            : {
+                outcome: "failed",
+                confidence: 1,
+                explanation: `Accessibility state did not match ${mismatches.length} expected field(s): ${mismatches.map(([key]) => key).join(", ")}.`,
+              };
+        }
+        return {
+          outcome: "verified",
+          confidence: 0.6,
+          explanation: "An accessibility state snapshot was captured, but no expected_state was declared to compare it against.",
+        };
+      }
+      default:
+        return { outcome: "unverified", confidence: 0, explanation: "Unrecognized evidence type." };
+    }
+  }
+
+  /**
+   * A secondary corroboration pass, only for the execution tiers that are
+   * inherently least trustworthy on their own (accessibility/vision/
+   * keyboard_mouse — screenshot- or UI-tree-based interaction rather than a
+   * direct API/process result). Never upgrades a ground-truth "failed" verdict,
+   * and never invents a "verified" the primary inspection didn't already reach —
+   * it only tempers confidence when the World Model's own independent view of
+   * the world disagrees with what the step claims to have affected.
+   */
+  private corroborateWithWorldModel(
+    step: ExecutionStep,
+    primary: { outcome: VerificationOutcome; confidence: number; explanation: string },
+  ): { outcome: VerificationOutcome; confidence: number; verification_method: "ground_truth" | "vision_secondary"; explanation: string } {
+    const lowerTrustTier =
+      step.execution_tier === "accessibility" ||
+      step.execution_tier === "vision" ||
+      step.execution_tier === "keyboard_mouse";
+    if (!this.worldModel || !lowerTrustTier || primary.outcome !== "verified") {
+      return { ...primary, verification_method: "ground_truth" };
+    }
+
+    const expectedApplication = step.parameters["expected_application_id"];
+    if (typeof expectedApplication !== "string") {
+      return { ...primary, verification_method: "ground_truth" };
+    }
+    const running = this.worldModel.runningApplications().some((app) => app.id === expectedApplication);
+    if (running) {
+      return {
+        outcome: "verified",
+        confidence: Math.min(1, primary.confidence + 0.1),
+        verification_method: "vision_secondary",
+        explanation: `${primary.explanation} Corroborated: '${expectedApplication}' is confirmed running by the World Model.`,
+      };
+    }
+    return {
+      outcome: "unverified",
+      confidence: Math.min(primary.confidence, 0.4),
+      verification_method: "vision_secondary",
+      explanation: `${primary.explanation} However, the World Model does not show '${expectedApplication}' running — the primary evidence and observed world state disagree.`,
+    };
+  }
+
+  private lookupDeclaration(step: ExecutionStep): { readonly verification_signal: string } | undefined {
+    if (!this.toolRegistry) return undefined;
+    const tool = this.toolRegistry.get(step.resolved_tool_id);
+    if (!tool.ok) return undefined;
+    return tool.value.supported_actions.find((action) => action.action_id === step.action_id);
   }
 
   private record(step: ExecutionStep, verdict: VerificationVerdict): Result<VerificationVerdict> {
@@ -434,4 +629,11 @@ export class Verifier {
     );
     return ok(verdict);
   }
+}
+
+function readStatusCode(value: unknown): number | undefined {
+  if (typeof value !== "object" || value === null) return undefined;
+  const record = value as Record<string, unknown>;
+  const candidate = record["status"] ?? record["status_code"] ?? record["statusCode"];
+  return typeof candidate === "number" ? candidate : undefined;
 }

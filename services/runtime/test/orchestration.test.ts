@@ -7,6 +7,7 @@ import type { ExecutionStep, ToolRegistration } from "../src/orchestration.js";
 import { ResourceManager } from "../src/resource-manager.js";
 import { MemoryLogSink, StructuredLogger } from "@nova/shared";
 import { createWorkspaceCodeTool } from "../src/workspace-code-executor.js";
+import { ToolRegistry } from "../src/tool-registry.js";
 
 const temporaryDirectories: string[] = [];
 
@@ -243,7 +244,7 @@ describe("Verifier", () => {
   it("returns verified only when evidence confirms the result", () => {
     const verifier = new Verifier();
 
-    const result = verifier.verify(step(), {
+    const result = verifier.verify(step({ parameters: { path: "/workspace/report.txt", expected_file_hash: "hash-123" } }), {
       step_id: "step-1",
       status: "success",
       evidence: { type: "file_hash", value: "hash-123" },
@@ -257,9 +258,97 @@ describe("Verifier", () => {
         outcome: "verified",
         confidence: 1,
         verification_method: "ground_truth",
-        explanation: "Ground-truth evidence confirms the step result.",
+        explanation: "File hash matches the expected hash.",
       },
     });
+  });
+
+  it("verifies a hash weakly when no expected hash was declared to compare it against", () => {
+    const verifier = new Verifier();
+
+    const result = verifier.verify(step(), {
+      step_id: "step-1",
+      status: "success",
+      evidence: { type: "file_hash", value: "hash-123" },
+      affected_resources: ["/workspace/report.txt"],
+    });
+
+    expect(result).toMatchObject({ ok: true, value: { outcome: "verified", confidence: 0.6 } });
+  });
+
+  it("fails, not verifies, when a file hash contradicts the expected hash", () => {
+    const verifier = new Verifier();
+
+    const result = verifier.verify(step({ parameters: { expected_file_hash: "hash-123" } }), {
+      step_id: "step-1",
+      status: "success",
+      evidence: { type: "file_hash", value: "hash-999" },
+      affected_resources: ["/workspace/report.txt"],
+    });
+
+    expect(result).toMatchObject({ ok: true, value: { outcome: "failed", confidence: 1 } });
+  });
+
+  it("fails a claimed success when the actual exit code is non-zero", () => {
+    const verifier = new Verifier();
+
+    const result = verifier.verify(step(), {
+      step_id: "step-1",
+      status: "success",
+      evidence: { type: "exit_code", value: 1 },
+      affected_resources: [],
+    });
+
+    expect(result).toMatchObject({ ok: true, value: { outcome: "failed", confidence: 1 } });
+  });
+
+  it("fails a claimed success when the API response status is an error", () => {
+    const verifier = new Verifier();
+
+    const result = verifier.verify(step(), {
+      step_id: "step-1",
+      status: "success",
+      evidence: { type: "api_response", value: { status: 500 } },
+      affected_resources: [],
+    });
+
+    expect(result).toMatchObject({ ok: true, value: { outcome: "failed", confidence: 1 } });
+  });
+
+  it("flags evidence of a different type than the tool declared as unverified", () => {
+    const registry = new ToolRegistry();
+    registry.register({
+      tool_id: "tool.filesystem",
+      execution_tier: "native_runtime",
+      deterministic: true,
+      dependencies: [],
+      target_entity_types: [],
+      supported_actions: [
+        {
+          action_id: "read_file",
+          risk_tier: "read_only",
+          verification_signal: "file_hash",
+          lockable_resources: [],
+          permission_scope: "filesystem.read",
+          estimated_latency_ms: 100,
+          estimated_cost_class: "free",
+          timeout_ms: 15_000,
+          idempotent: true,
+          input_schema: {},
+          output_schema: {},
+        },
+      ],
+    });
+    const verifier = new Verifier(undefined, { toolRegistry: registry });
+
+    const result = verifier.verify(step(), {
+      step_id: "step-1",
+      status: "success",
+      evidence: { type: "exit_code", value: 0 },
+      affected_resources: [],
+    });
+
+    expect(result).toMatchObject({ ok: true, value: { outcome: "unverified", confidence: 0.2 } });
   });
 
   it("keeps missing evidence as unverified instead of completed", () => {

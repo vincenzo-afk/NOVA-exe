@@ -213,6 +213,68 @@ export class MemoryStore {
     }
   }
 
+  /**
+   * The same tier-scan and filter logic `search()` already uses, minus
+   * the query-substring gate — for a caller (like `RetrievalEngine`)
+   * that wants to score the full candidate set itself rather than have
+   * candidates pre-excluded by a crude substring check before scoring
+   * ever runs. `search()` itself is unchanged and still the right call
+   * for a simple, direct lookup.
+   */
+  async listCandidates(
+    filters: MemorySearchInput["filters"] = {},
+  ): Promise<Result<readonly MemoryRecordSummary[]>> {
+    const start = filters?.time_range?.start;
+    const end = filters?.time_range?.end;
+    if (
+      (start !== undefined && Number.isNaN(Date.parse(start))) ||
+      (end !== undefined && Number.isNaN(Date.parse(end))) ||
+      (start !== undefined && end !== undefined && Date.parse(start) > Date.parse(end))
+    ) {
+      return err(this.invalidInput("Memory search time range is invalid."));
+    }
+    try {
+      const [working, recent, longTerm] = await Promise.all([
+        this.client.workingMemoryEntry.findMany({ where: { workspaceId: this.workspaceId } }),
+        this.client.recentMemoryEntry.findMany({ where: { workspaceId: this.workspaceId } }),
+        this.client.longTermMemoryEntry.findMany({ where: { workspaceId: this.workspaceId } }),
+      ]);
+      const records = [
+        ...working.map((row) => this.toWorkingSummary(row)),
+        ...recent.map((row) => this.toRecentSummary(row)),
+        ...longTerm.map((row) => this.toLongTermSummary(row)),
+      ];
+      const project = filters?.project?.trim().toLocaleLowerCase();
+      const entityType = filters?.entity_type?.trim().toLocaleLowerCase();
+      const filtered = records
+        .filter((record) => filters?.include_superseded === true || record.status !== "SUPERSEDED")
+        .filter(
+          (record) =>
+            project === undefined || record.content_ref.toLocaleLowerCase().includes(project),
+        )
+        .filter(
+          (record) =>
+            entityType === undefined ||
+            record.content_ref.toLocaleLowerCase().includes(entityType),
+        )
+        .filter((record) => {
+          const createdAt = Date.parse(record.created_at);
+          return (
+            (start === undefined || createdAt >= Date.parse(start)) &&
+            (end === undefined || createdAt <= Date.parse(end))
+          );
+        })
+        .sort((left, right) => {
+          const byDate = Date.parse(right.created_at) - Date.parse(left.created_at);
+          if (byDate !== 0) return byDate;
+          return left.record_id.localeCompare(right.record_id);
+        });
+      return ok(filtered);
+    } catch (cause) {
+      return err(this.storageError(cause));
+    }
+  }
+
   async search(input: MemorySearchInput): Promise<Result<readonly MemoryRecordSummary[]>> {
     if (input.query.trim().length === 0) {
       return err(this.invalidInput("Memory search query is required."));

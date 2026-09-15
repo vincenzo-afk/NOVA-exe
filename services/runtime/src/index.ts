@@ -94,6 +94,13 @@ export * from "./archive.js";
 export * from "./plugin-sdk.js";
 export * from "./device-connection-lifecycle.js";
 export * from "./groq-provider.js";
+export * from "./credential-store.js";
+export * from "./anthropic-provider.js";
+export * from "./llm-plan-generator.js";
+export * from "./semantic-matcher.js";
+export * from "./retrieval-fusion.js";
+export * from "./retrieval-engine.js";
+export * from "./knowledge-graph-persistence.js";
 export * from "./system-inventory.js";
 export * from "./configuration-store.js";
 export {
