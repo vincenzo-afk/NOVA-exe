@@ -242,6 +242,8 @@ export interface RuntimeApplicationOptions {
   readonly taskManager?: TaskManager;
   readonly permissionStore?: PermissionGrantStore;
   readonly persistence?: TaskCheckpointPersistence & TaskRecoveryPersistence;
+  /** Passed straight through to `RuntimeTaskCoordinator` — how many automatic in-flight replan attempts a failed step gets before the task is failed outright. Defaults to 2. */
+  readonly maxReplanAttempts?: number;
   readonly scheduler?: TaskScheduler;
   readonly taskSchedulerOptions?: TaskSchedulerOptions;
   readonly workflowEngine?: WorkflowEngine;
@@ -492,6 +494,7 @@ export class RuntimeApplication {
       verifier: options.verifier,
       events: bus,
       ...(options.persistence === undefined ? {} : { persistence: options.persistence }),
+      ...(options.maxReplanAttempts === undefined ? {} : { maxReplanAttempts: options.maxReplanAttempts }),
     });
     this.scheduler =
       options.scheduler ??

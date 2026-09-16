@@ -35,7 +35,7 @@ const tool: ToolRegistration = {
       idempotent: true,
       execute: vi.fn(async (parameters) => ({
         status: "success" as const,
-        evidence: { type: "api_response" as const, value: parameters.value },
+        evidence: { type: "api_response" as const, value: { status: 200, echoed: parameters.value } },
         affected_resources: [],
       })),
     },
@@ -317,5 +317,106 @@ describe("RuntimeTaskCoordinator", () => {
     const result = await coordinator.execute(submitted.value.task_id);
 
     expect(result).toMatchObject({ ok: true, value: { state: "Unverified" } });
+  });
+
+  it("automatically replans around a failed step and completes via an alternative plan", async () => {
+    const tasks = new TaskManager();
+    const failingTool: ToolRegistration = {
+      tool_id: "tool.flaky",
+      deterministic: true,
+      actions: {
+        run: {
+          risk_tier: "read_only",
+          verification_signal: "exit_code",
+          idempotent: true,
+          execute: vi.fn(async () => ({
+            status: "success" as const,
+            evidence: { type: "exit_code" as const, value: 1 },
+            affected_resources: [],
+          })),
+        },
+      },
+    };
+    const failingStep = { ...step, resolved_tool_id: failingTool.tool_id };
+    const recoveryStep = { ...step, step_id: "step-2", resolved_tool_id: tool.tool_id };
+
+    const coordinator = new RuntimeTaskCoordinator({
+      tasks,
+      planner: new Planner({
+        deterministic: new Map([["flaky then recover", failingStep]]),
+        llmPlanner: async (goal) => (goal.includes("Automatic replan attempt 1") ? [recoveryStep] : []),
+      }),
+      executor: new Executor(
+        new PermissionManager({
+          allowedToolIds: new Set([failingTool.tool_id, tool.tool_id]),
+          confirmationTimeoutMs: 30_000,
+        }),
+        new Map([
+          [failingTool.tool_id, failingTool],
+          [tool.tool_id, tool],
+        ]),
+      ),
+      verifier: new Verifier(),
+      events: new InMemoryCommunicationBus(),
+    });
+
+    const submitted = coordinator.submit({ goal: "flaky then recover" });
+    if (!submitted.ok) throw new Error("Task submission failed.");
+    const result = await coordinator.execute(submitted.value.task_id);
+
+    expect(result).toMatchObject({ ok: true, value: { state: "Completed" } });
+    if (!result.ok) return;
+    // The audit trail records both the failed first attempt and the
+    // successful recovery — nothing about a later successful replan erases
+    // the fact an earlier attempt failed.
+    expect(result.value.step_history).toHaveLength(2);
+    expect(result.value.step_history[0]).toMatchObject({ verdict: { outcome: "failed" } });
+    expect(result.value.step_history[1]).toMatchObject({ verdict: { outcome: "verified" } });
+    expect(failingTool.actions.run.execute).toHaveBeenCalledTimes(1);
+  });
+
+  it("fails the task once replan attempts are exhausted, never retrying forever", async () => {
+    const tasks = new TaskManager();
+    const alwaysFailingExecute = vi.fn(async () => ({
+      status: "success" as const,
+      evidence: { type: "exit_code" as const, value: 1 },
+      affected_resources: [],
+    }));
+    const failingTool: ToolRegistration = {
+      tool_id: "tool.always-flaky",
+      deterministic: true,
+      actions: {
+        run: { risk_tier: "read_only", verification_signal: "exit_code", idempotent: true, execute: alwaysFailingExecute },
+      },
+    };
+    const failingStep = { ...step, resolved_tool_id: failingTool.tool_id };
+    let llmPlannerCalls = 0;
+
+    const coordinator = new RuntimeTaskCoordinator({
+      tasks,
+      planner: new Planner({
+        deterministic: new Map([["never recovers", failingStep]]),
+        llmPlanner: async () => {
+          llmPlannerCalls += 1;
+          return [failingStep];
+        },
+      }),
+      executor: new Executor(
+        new PermissionManager({ allowedToolIds: new Set([failingTool.tool_id]), confirmationTimeoutMs: 30_000 }),
+        new Map([[failingTool.tool_id, failingTool]]),
+      ),
+      verifier: new Verifier(),
+      events: new InMemoryCommunicationBus(),
+      maxReplanAttempts: 2,
+    });
+
+    const submitted = coordinator.submit({ goal: "never recovers" });
+    if (!submitted.ok) throw new Error("Task submission failed.");
+    const result = await coordinator.execute(submitted.value.task_id);
+
+    expect(result).toMatchObject({ ok: true, value: { state: "Failed" } });
+    // Original attempt + 2 replans = 3 total execution attempts, then it gives up.
+    expect(alwaysFailingExecute).toHaveBeenCalledTimes(3);
+    expect(llmPlannerCalls).toBe(2);
   });
 });
