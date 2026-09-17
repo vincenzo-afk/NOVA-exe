@@ -1,4 +1,16 @@
-import { createHmac, createCipheriv, createDecipheriv, randomBytes, createPrivateKey, createPublicKey, diffieHellman, generateKeyPairSync, sign as cryptoSign, verify as cryptoVerify, type KeyObject } from "node:crypto";
+import {
+  createHmac,
+  createCipheriv,
+  createDecipheriv,
+  randomBytes,
+  createPrivateKey,
+  createPublicKey,
+  diffieHellman,
+  generateKeyPairSync,
+  sign as cryptoSign,
+  verify as cryptoVerify,
+  type KeyObject,
+} from "node:crypto";
 
 import { err, ok, type Result } from "@nova/shared";
 
@@ -60,7 +72,11 @@ function loadPublicKey(publicKeyB64: string): KeyObject {
 }
 
 function loadPrivateKey(privateKeyB64: string): KeyObject {
-  return createPrivateKey({ key: Buffer.from(privateKeyB64, "base64"), format: "der", type: "pkcs8" });
+  return createPrivateKey({
+    key: Buffer.from(privateKeyB64, "base64"),
+    format: "der",
+    type: "pkcs8",
+  });
 }
 
 /**
@@ -99,7 +115,10 @@ export function verifyChallengeSignature(
  * standard ECDH followed by HKDF-SHA256 so the raw shared point is
  * never used directly as a cipher key.
  */
-export function deriveSessionKey(ownPrivateKeyB64: string, peerPublicKeyB64: string): Result<Buffer> {
+export function deriveSessionKey(
+  ownPrivateKeyB64: string,
+  peerPublicKeyB64: string,
+): Result<Buffer> {
   try {
     const sharedSecret = diffieHellman({
       privateKey: loadPrivateKey(ownPrivateKeyB64),
@@ -149,7 +168,11 @@ export function encryptPayload(sessionKey: Buffer, plaintext: string): Encrypted
 
 export function decryptPayload(sessionKey: Buffer, envelope: EncryptedEnvelope): Result<string> {
   try {
-    const decipher = createDecipheriv("aes-256-gcm", sessionKey, Buffer.from(envelope.iv_b64, "base64"));
+    const decipher = createDecipheriv(
+      "aes-256-gcm",
+      sessionKey,
+      Buffer.from(envelope.iv_b64, "base64"),
+    );
     decipher.setAuthTag(Buffer.from(envelope.tag_b64, "base64"));
     const plaintext = Buffer.concat([
       decipher.update(Buffer.from(envelope.ciphertext_b64, "base64")),
@@ -159,7 +182,8 @@ export function decryptPayload(sessionKey: Buffer, envelope: EncryptedEnvelope):
   } catch {
     return err({
       code: "NOVA-SEC001",
-      message: "Payload failed to decrypt or authenticate — it may be corrupted, replayed with a stale key, or tampered with.",
+      message:
+        "Payload failed to decrypt or authenticate — it may be corrupted, replayed with a stale key, or tampered with.",
       retryable: false,
     });
   }

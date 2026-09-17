@@ -84,7 +84,9 @@ export class ElectronSafeStorageVaultBackend implements VaultBackend {
 
   public delete(reference: string): void {
     if (!(reference in this.entries)) return;
-    delete this.entries[reference];
+    const next = { ...this.entries };
+    Reflect.deleteProperty(next, reference);
+    this.entries = next;
     this.persist();
   }
 

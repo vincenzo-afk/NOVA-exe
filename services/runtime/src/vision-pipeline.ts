@@ -1,6 +1,7 @@
 import { err, ok, type Result } from "@nova/shared";
 
-import { SpatialContext, type ObjectObservation, type SpatialMatch } from "./spatial-context.js";
+import type { SpatialContext } from "./spatial-context.js";
+import { type ObjectObservation, type SpatialMatch } from "./spatial-context.js";
 
 /**
  * Completes the vision pipeline: a captured frame (from
@@ -23,7 +24,12 @@ export interface VisionProviderResult {
   readonly objects: readonly {
     readonly label: string;
     readonly description: string;
-    readonly boundingBox?: { readonly x: number; readonly y: number; readonly width: number; readonly height: number };
+    readonly boundingBox?: {
+      readonly x: number;
+      readonly y: number;
+      readonly width: number;
+      readonly height: number;
+    };
   }[];
 }
 
@@ -43,7 +49,12 @@ export interface ResolvedObject {
   readonly node_id: string;
   readonly label: string;
   readonly via: SpatialMatch["via"];
-  readonly bounding_box?: { readonly x: number; readonly y: number; readonly width: number; readonly height: number };
+  readonly bounding_box?: {
+    readonly x: number;
+    readonly y: number;
+    readonly width: number;
+    readonly height: number;
+  };
 }
 
 export class VisionPipeline {
@@ -53,12 +64,18 @@ export class VisionPipeline {
     private readonly maxFrameBytes = 8 * 1024 * 1024,
   ) {}
 
-  public async processFrame(request: VisionFrameRequest): Promise<Result<readonly ResolvedObject[]>> {
+  public async processFrame(
+    request: VisionFrameRequest,
+  ): Promise<Result<readonly ResolvedObject[]>> {
     let frameBytes: Buffer;
     try {
       frameBytes = Buffer.from(request.frame_b64, "base64");
     } catch {
-      return err({ code: "NOVA-TL003", message: "frame_b64 is not valid base64.", retryable: false });
+      return err({
+        code: "NOVA-TL003",
+        message: "frame_b64 is not valid base64.",
+        retryable: false,
+      });
     }
     if (frameBytes.length === 0) {
       return err({ code: "NOVA-TL003", message: "Frame payload is empty.", retryable: false });

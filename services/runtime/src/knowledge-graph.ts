@@ -268,7 +268,11 @@ export class KnowledgeGraph {
       }
       this.edges.set(edgeId, { ...edge, from_node_id: repointedFrom, to_node_id: repointedTo });
     }
-    const mergedAliases = new Set([...(canonical.aliases ?? []), ...(duplicate.aliases ?? []), duplicate.name]);
+    const mergedAliases = new Set([
+      ...(canonical.aliases ?? []),
+      ...(duplicate.aliases ?? []),
+      duplicate.name,
+    ]);
     mergedAliases.delete(canonical.name);
     const updatedCanonical = { ...canonical, aliases: [...mergedAliases] };
     this.nodes.set(canonicalId, updatedCanonical);
@@ -306,8 +310,10 @@ export class KnowledgeGraph {
     for (const edgeId of edgeIdsToMove) {
       const edge = this.edges.get(edgeId);
       if (!edge) continue;
-      if (edge.from_node_id === sourceId) this.edges.set(edgeId, { ...edge, from_node_id: newNode.id });
-      else if (edge.to_node_id === sourceId) this.edges.set(edgeId, { ...edge, to_node_id: newNode.id });
+      if (edge.from_node_id === sourceId)
+        this.edges.set(edgeId, { ...edge, from_node_id: newNode.id });
+      else if (edge.to_node_id === sourceId)
+        this.edges.set(edgeId, { ...edge, to_node_id: newNode.id });
     }
     const remainingAliases = (source.aliases ?? []).filter((alias) => alias !== aliasToSplit);
     const updatedSource = { ...source, aliases: remainingAliases };

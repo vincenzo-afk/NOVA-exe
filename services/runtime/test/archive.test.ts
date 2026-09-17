@@ -46,7 +46,9 @@ describe("createTarGz / readTarGz", () => {
 
   it("rejects a path longer than USTAR's 100-byte name field", () => {
     const longPath = `${"a".repeat(101)}.txt`;
-    expect(() => createTarGz([{ path: longPath, content: Buffer.from("x") }])).toThrow(/100-byte name limit/);
+    expect(() => createTarGz([{ path: longPath, content: Buffer.from("x") }])).toThrow(
+      /100-byte name limit/,
+    );
   });
 
   it("produces an archive that is actually gzip-compressed, not just tar", () => {

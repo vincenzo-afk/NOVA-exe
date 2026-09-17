@@ -57,7 +57,10 @@ export class RetrievalFusion {
 
     const results: RankedRetrievalResult[] = [];
     for (const [id, candidate] of candidateById) {
-      const score = Math.min(1, (branchContribution.get(id) ?? 0) + this.candidateLevelBonus(candidate));
+      const score = Math.min(
+        1,
+        (branchContribution.get(id) ?? 0) + this.candidateLevelBonus(candidate),
+      );
       results.push({ ...candidate, score });
     }
     return results.sort((left, right) => right.score - left.score);

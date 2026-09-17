@@ -16,7 +16,7 @@ not encryption strength.
 
 Data categories and which existing handling document governs each.
 Encryption mechanics are `encryption.md`; credential vaulting mechanics
-are `secrets.md`; diagnostic-log exclusions are `docs/13-devops/
+are `secrets.md`; diagnostic-log exclusions are docs/13-devops/
 logging.md`.
 
 ## Categories

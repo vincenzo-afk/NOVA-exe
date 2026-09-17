@@ -20,7 +20,13 @@ export type CompanionCommandAction =
   | { readonly kind: "app_control.click_by_text"; readonly text: string }
   | { readonly kind: "file_access.list"; readonly tree_uri: string }
   | { readonly kind: "file_access.read"; readonly file_uri: string }
-  | { readonly kind: "file_access.write"; readonly directory_tree_uri: string; readonly file_name: string; readonly mime_type: string; readonly content_b64: string };
+  | {
+      readonly kind: "file_access.write";
+      readonly directory_tree_uri: string;
+      readonly file_name: string;
+      readonly mime_type: string;
+      readonly content_b64: string;
+    };
 
 export interface CompanionCommand {
   readonly command_id: string;
@@ -86,9 +92,7 @@ export class CompanionCommandBridge {
         },
         reject: (error) => {
           clearTimeout(timeout);
-          resolvePromise(
-            err({ code: "NOVA-NET001", message: error.message, retryable: true }),
-          );
+          resolvePromise(err({ code: "NOVA-NET001", message: error.message, retryable: true }));
         },
         timeout,
       });

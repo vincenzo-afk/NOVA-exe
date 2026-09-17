@@ -83,9 +83,15 @@ export class AnthropicProvider implements LlmProvider {
       throw new Error("Anthropic requests require at least one non-system chat message.");
     }
 
-    const response = await this.rawInvoke(turns, system.length > 0 ? system : undefined, 4096, request.temperature);
+    const response = await this.rawInvoke(
+      turns,
+      system.length > 0 ? system : undefined,
+      4096,
+      request.temperature,
+    );
     if (!response.ok) {
-      const body = (await response.json().catch(() => undefined)) as AnthropicMessageResponse | undefined;
+      const body = (await response.json().catch(() => undefined)) as
+        AnthropicMessageResponse | undefined;
       throw new Error(
         `Anthropic request failed with status ${response.status}${body?.error?.message ? `: ${body.error.message}` : "."}`,
       );

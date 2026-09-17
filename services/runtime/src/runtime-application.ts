@@ -494,7 +494,9 @@ export class RuntimeApplication {
       verifier: options.verifier,
       events: bus,
       ...(options.persistence === undefined ? {} : { persistence: options.persistence }),
-      ...(options.maxReplanAttempts === undefined ? {} : { maxReplanAttempts: options.maxReplanAttempts }),
+      ...(options.maxReplanAttempts === undefined
+        ? {}
+        : { maxReplanAttempts: options.maxReplanAttempts }),
     });
     this.scheduler =
       options.scheduler ??

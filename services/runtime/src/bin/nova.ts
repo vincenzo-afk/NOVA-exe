@@ -4,7 +4,13 @@ import { cpus, homedir, totalmem } from "node:os";
 import { join } from "node:path";
 import { FileJsonlLogSink, FileMetricStore, FileSpanStore } from "@nova/shared";
 import { HardwareDetector } from "../hardware-detection.js";
-import { checksumOf, createPluginScaffold, packagePlugin, signPluginChecksum, validatePluginManifest } from "../plugin-sdk.js";
+import {
+  checksumOf,
+  createPluginScaffold,
+  packagePlugin,
+  signPluginChecksum,
+  validatePluginManifest,
+} from "../plugin-sdk.js";
 import { NovaCli } from "../cli.js";
 
 /**
@@ -37,7 +43,8 @@ const detector = new HardwareDetector(async () => ({
       : process.platform === "linux"
         ? "linux"
         : "unknown") as "windows" | "macos" | "linux" | "android" | "unknown",
-  cpu_architecture: process.arch === "arm64" ? "arm64" : process.arch === "x64" ? "x86_64" : "unknown",
+  cpu_architecture:
+    process.arch === "arm64" ? "arm64" : process.arch === "x64" ? "x86_64" : "unknown",
   cpu_cores: cpus().length,
   avx2: "unknown",
   avx512: "unknown",
@@ -69,10 +76,15 @@ const cli = new NovaCli({
     };
   },
   logs: async () =>
-    logSink.records().map((record) => `${record.timestamp} [${record.severity}] ${record.service}: ${record.event}`),
-  traces: async (correlationId) => (correlationId ? spanStore.query(correlationId) : []).map(
-    (span) => `${span.name} (${span.status}) ${span.started_at}`,
-  ),
+    logSink
+      .records()
+      .map(
+        (record) => `${record.timestamp} [${record.severity}] ${record.service}: ${record.event}`,
+      ),
+  traces: async (correlationId) =>
+    (correlationId ? spanStore.query(correlationId) : []).map(
+      (span) => `${span.name} (${span.status}) ${span.started_at}`,
+    ),
   metrics: async () => {
     const summary: Record<string, number> = {};
     for (const name of metricStore.names()) {
@@ -92,7 +104,8 @@ const cli = new NovaCli({
         : { ok: false, detail: scaffold.error.message };
     }
     if (action === "validate") {
-      if (!name) return { ok: false, detail: "plugin validate requires a <manifest-path> argument." };
+      if (!name)
+        return { ok: false, detail: "plugin validate requires a <manifest-path> argument." };
       try {
         const manifest = JSON.parse(readFileSync(name, "utf8"));
         const result = validatePluginManifest(manifest);
@@ -100,11 +113,15 @@ const cli = new NovaCli({
           ? { ok: true, detail: "Manifest is valid." }
           : { ok: false, detail: result.error.message };
       } catch (error) {
-        return { ok: false, detail: `Could not read or parse '${name}': ${(error as Error).message}` };
+        return {
+          ok: false,
+          detail: `Could not read or parse '${name}': ${(error as Error).message}`,
+        };
       }
     }
     if (action === "package") {
-      if (!name) return { ok: false, detail: "plugin package requires a <plugin-directory> argument." };
+      if (!name)
+        return { ok: false, detail: "plugin package requires a <plugin-directory> argument." };
       try {
         const manifestPath = join(name, "manifest.json");
         const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
@@ -121,7 +138,8 @@ const cli = new NovaCli({
       }
     }
     if (action === "sign") {
-      if (!name) return { ok: false, detail: "plugin sign requires a <package-path> (.tar.gz) argument." };
+      if (!name)
+        return { ok: false, detail: "plugin sign requires a <package-path> (.tar.gz) argument." };
       const keyPath = process.env.NOVA_PLUGIN_SIGNING_KEY_PATH;
       if (!keyPath) {
         return {
@@ -142,7 +160,10 @@ const cli = new NovaCli({
         return { ok: false, detail: `Signing failed: ${(error as Error).message}` };
       }
     }
-    return { ok: false, detail: `plugin ${action} is not implemented — see AUDIT_REPORT_2026-09-11.md.` };
+    return {
+      ok: false,
+      detail: `plugin ${action} is not implemented — see AUDIT_REPORT_2026-09-11.md.`,
+    };
   },
 });
 
@@ -155,4 +176,3 @@ cli.run(process.argv.slice(2)).then((result) => {
     process.exitCode = 1;
   }
 });
-

@@ -77,7 +77,9 @@ export class EntityResolver {
       }
     }
 
-    const plausible = ranked.filter((candidate) => candidate.confidence >= PLAUSIBLE_CANDIDATE_THRESHOLD);
+    const plausible = ranked.filter(
+      (candidate) => candidate.confidence >= PLAUSIBLE_CANDIDATE_THRESHOLD,
+    );
     if (plausible.length > 1) {
       return { outcome: "ambiguous", candidates: plausible };
     }

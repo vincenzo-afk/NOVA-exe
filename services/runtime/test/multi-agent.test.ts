@@ -3,10 +3,18 @@ import { InMemoryCommunicationBus } from "@nova/shared";
 
 import { Planner, Verifier, type ToolRegistration } from "../src/orchestration.js";
 import { TaskManager } from "../src/task-manager.js";
-import { MultiAgentCoordinator, type AgentBranchSpec, type AgentEventBus } from "../src/multi-agent.js";
+import {
+  MultiAgentCoordinator,
+  type AgentBranchSpec,
+  type AgentEventBus,
+} from "../src/multi-agent.js";
 import { AgentMessageBus } from "../src/agent-message-bus.js";
 
-function buildStep(toolId: string, actionId = "run", parameters: Readonly<Record<string, unknown>> = {}) {
+function buildStep(
+  toolId: string,
+  actionId = "run",
+  parameters: Readonly<Record<string, unknown>> = {},
+) {
   return {
     step_id: `${toolId}-${actionId}-step`,
     task_id: "placeholder",
@@ -23,7 +31,10 @@ function buildStep(toolId: string, actionId = "run", parameters: Readonly<Record
   };
 }
 
-function successTool(toolId: string, execute?: ToolRegistration["actions"]["run"]["execute"]): ToolRegistration {
+function successTool(
+  toolId: string,
+  execute?: ToolRegistration["actions"]["run"]["execute"],
+): ToolRegistration {
   return {
     tool_id: toolId,
     deterministic: true,
@@ -34,7 +45,11 @@ function successTool(toolId: string, execute?: ToolRegistration["actions"]["run"
         idempotent: true,
         execute:
           execute ??
-          (async () => ({ status: "success" as const, evidence: { type: "exit_code" as const, value: 0 }, affected_resources: [] })),
+          (async () => ({
+            status: "success" as const,
+            evidence: { type: "exit_code" as const, value: 0 },
+            affected_resources: [],
+          })),
       },
     },
   };
@@ -71,11 +86,25 @@ describe("MultiAgentCoordinator", () => {
       bus,
     );
     const branches: AgentBranchSpec[] = [
-      { branch_id: "research", role: "researcher", goal: "research the topic", permission_scope: new Set(["tool.research"]) },
-      { branch_id: "refactor", role: "engineer", goal: "refactor the module", permission_scope: new Set(["tool.refactor"]) },
+      {
+        branch_id: "research",
+        role: "researcher",
+        goal: "research the topic",
+        permission_scope: new Set(["tool.research"]),
+      },
+      {
+        branch_id: "refactor",
+        role: "engineer",
+        goal: "refactor the module",
+        permission_scope: new Set(["tool.refactor"]),
+      },
     ];
 
-    const result = await coordinator.run("parent-1", branches, new Set(["tool.research", "tool.refactor"]));
+    const result = await coordinator.run(
+      "parent-1",
+      branches,
+      new Set(["tool.research", "tool.refactor"]),
+    );
 
     expect(result).toMatchObject({
       ok: true,
@@ -83,7 +112,12 @@ describe("MultiAgentCoordinator", () => {
         parent_task_id: "parent-1",
         status: "completed",
         branches: [
-          { branch_id: "research", role: "researcher", status: "completed", task_state: "Completed" },
+          {
+            branch_id: "research",
+            role: "researcher",
+            status: "completed",
+            task_state: "Completed",
+          },
           { branch_id: "refactor", role: "engineer", status: "completed", task_state: "Completed" },
         ],
       },
@@ -99,9 +133,17 @@ describe("MultiAgentCoordinator", () => {
       affected_resources: [],
     }));
     const tools = new Map([["tool.admin", successTool("tool.admin", execute)]]);
-    const coordinator = buildCoordinator(new Map([["delete everything", buildStep("tool.admin")]]), tools, bus);
+    const coordinator = buildCoordinator(
+      new Map([["delete everything", buildStep("tool.admin")]]),
+      tools,
+      bus,
+    );
     const branches: AgentBranchSpec[] = [
-      { branch_id: "outside", goal: "delete everything", permission_scope: new Set(["tool.admin"]) },
+      {
+        branch_id: "outside",
+        goal: "delete everything",
+        permission_scope: new Set(["tool.admin"]),
+      },
     ];
 
     const result = await coordinator.run("parent-2", branches, new Set(["tool.research"]));
@@ -170,7 +212,10 @@ describe("MultiAgentCoordinator", () => {
     // it must still work, since coordination shouldn't require opting in to being coordinated.
     const coordinator = buildCoordinator(
       new Map([
-        ["send hello to bob", buildStep("nova.agent-messaging", "send", { to_branch_id: "bob", content: "hello" })],
+        [
+          "send hello to bob",
+          buildStep("nova.agent-messaging", "send", { to_branch_id: "bob", content: "hello" }),
+        ],
         ["wait for messages", buildStep("tool.noop")],
       ]),
       tools,
@@ -188,7 +233,13 @@ describe("MultiAgentCoordinator", () => {
 
     expect(result).toMatchObject({
       ok: true,
-      value: { status: "completed", branches: [{ branch_id: "alice", status: "completed" }, { branch_id: "bob", status: "completed" }] },
+      value: {
+        status: "completed",
+        branches: [
+          { branch_id: "alice", status: "completed" },
+          { branch_id: "bob", status: "completed" },
+        ],
+      },
     });
   });
 });
@@ -201,7 +252,9 @@ describe("AgentMessageBus", () => {
 
     expect(sent.ok).toBe(true);
     expect(bus.peek("a")).toEqual([]);
-    expect(bus.receive("b")).toMatchObject([{ from_branch_id: "a", to_branch_id: "b", content: "hello from a" }]);
+    expect(bus.receive("b")).toMatchObject([
+      { from_branch_id: "a", to_branch_id: "b", content: "hello from a" },
+    ]);
     expect(bus.receive("b")).toEqual([]); // drained
   });
 

@@ -45,7 +45,9 @@ describe("validatePluginManifest", () => {
     const scaffold = createPluginScaffold("weather-lookup", "Weather Lookup");
     if (!scaffold.ok) throw new Error("scaffold should succeed");
 
-    expect(validatePluginManifest(JSON.parse(scaffold.value.manifestJson))).toMatchObject({ ok: true });
+    expect(validatePluginManifest(JSON.parse(scaffold.value.manifestJson))).toMatchObject({
+      ok: true,
+    });
   });
 
   it("reports every failing field in one pass rather than stopping at the first", () => {
@@ -64,7 +66,10 @@ describe("validatePluginManifest", () => {
   it("flags an unknown declared permission scope", () => {
     const scaffold = createPluginScaffold("weather-lookup", "Weather Lookup");
     if (!scaffold.ok) throw new Error("scaffold should succeed");
-    const manifest = { ...JSON.parse(scaffold.value.manifestJson), required_permissions: ["not.real"] };
+    const manifest = {
+      ...JSON.parse(scaffold.value.manifestJson),
+      required_permissions: ["not.real"],
+    };
 
     const result = validatePluginManifest(manifest);
     expect(result.ok).toBe(false);
@@ -120,7 +125,9 @@ describe("packagePlugin", () => {
 
     const entries = readTarGz(result.value.archive);
     expect(entries.map((entry) => entry.path)).toEqual(["manifest.json", "index.js"]);
-    expect(JSON.parse(entries[0].content.toString("utf8"))).toMatchObject({ plugin_id: "weather-lookup" });
+    expect(JSON.parse(entries[0].content.toString("utf8"))).toMatchObject({
+      plugin_id: "weather-lookup",
+    });
   });
 
   it("produces the same checksum for byte-identical archives, and a different one for different content", () => {
@@ -133,8 +140,12 @@ describe("packagePlugin", () => {
 
     expect(first.ok && second.ok && first.value.checksum === second.value.checksum).toBe(true);
 
-    const differentFiles = packagePlugin(manifestA, [{ path: "extra.js", content: Buffer.from("x") }]);
-    expect(differentFiles.ok && first.ok && differentFiles.value.checksum !== first.value.checksum).toBe(true);
+    const differentFiles = packagePlugin(manifestA, [
+      { path: "extra.js", content: Buffer.from("x") },
+    ]);
+    expect(
+      differentFiles.ok && first.ok && differentFiles.value.checksum !== first.value.checksum,
+    ).toBe(true);
   });
 });
 

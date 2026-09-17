@@ -2,7 +2,13 @@ import type { CommunicationBus, ErrorInfo, Result, StructuredLogger } from "@nov
 import { err, ok } from "@nova/shared";
 
 import { AgentMessageBus, type AgentMessage } from "./agent-message-bus.js";
-import { Executor, PermissionManager, type Planner, type ToolRegistration, type Verifier } from "./orchestration.js";
+import {
+  Executor,
+  PermissionManager,
+  type Planner,
+  type ToolRegistration,
+  type Verifier,
+} from "./orchestration.js";
 import { RuntimeTaskCoordinator } from "./runtime-task-coordinator.js";
 import type { TaskManager, TaskRecord } from "./task-manager.js";
 import type { ResourceManager } from "./resource-manager.js";
@@ -81,7 +87,11 @@ export class MultiAgentCoordinator {
     for (const branch of branches) {
       for (const toolId of branch.permission_scope) {
         if (!parentPermissions.has(toolId)) {
-          return err(this.securityError(`Branch '${branch.branch_id}' exceeds the parent task's permission scope.`));
+          return err(
+            this.securityError(
+              `Branch '${branch.branch_id}' exceeds the parent task's permission scope.`,
+            ),
+          );
         }
       }
     }
@@ -96,7 +106,9 @@ export class MultiAgentCoordinator {
       branches.map((branch) => this.runBranch(parentTaskId, branch, messageBus)),
     );
 
-    const status = results.every((result) => result.status === "completed") ? "completed" : "partial";
+    const status = results.every((result) => result.status === "completed")
+      ? "completed"
+      : "partial";
     return ok({ parent_task_id: parentTaskId, status, branches: results });
   }
 
@@ -110,17 +122,27 @@ export class MultiAgentCoordinator {
     scopedTools.set(MESSAGING_TOOL_ID, buildMessagingTool(branch.branch_id, messageBus));
 
     const permissionManager = new PermissionManager(
-      { allowedToolIds: scopedToolIds, confirmationTimeoutMs: this.options.confirmationTimeoutMs ?? 0 },
+      {
+        allowedToolIds: scopedToolIds,
+        confirmationTimeoutMs: this.options.confirmationTimeoutMs ?? 0,
+      },
       this.options.logger,
     );
-    const executor = new Executor(permissionManager, scopedTools, this.options.resourceManager, this.options.logger);
+    const executor = new Executor(
+      permissionManager,
+      scopedTools,
+      this.options.resourceManager,
+      this.options.logger,
+    );
     const coordinator = new RuntimeTaskCoordinator({
       tasks: this.options.tasks,
       planner: this.options.planner,
       executor,
       verifier: this.options.verifier,
       events: this.options.events,
-      ...(this.options.maxReplanAttempts === undefined ? {} : { maxReplanAttempts: this.options.maxReplanAttempts }),
+      ...(this.options.maxReplanAttempts === undefined
+        ? {}
+        : { maxReplanAttempts: this.options.maxReplanAttempts }),
     });
 
     const submitted = coordinator.submit({ goal: branch.goal, correlation_id: parentTaskId });
@@ -201,8 +223,10 @@ function buildMessagingTool(branchId: string, messageBus: AgentMessageBus): Tool
         verification_signal: "api_response",
         idempotent: false,
         execute: async (parameters) => {
-          const toBranchId = typeof parameters["to_branch_id"] === "string" ? parameters["to_branch_id"] : undefined;
-          const content = typeof parameters["content"] === "string" ? parameters["content"] : undefined;
+          const toBranchId =
+            typeof parameters["to_branch_id"] === "string" ? parameters["to_branch_id"] : undefined;
+          const content =
+            typeof parameters["content"] === "string" ? parameters["content"] : undefined;
           if (!toBranchId || !content) {
             return {
               status: "failure",

@@ -83,7 +83,8 @@ export function createLlmPlanGenerator(
         steps.push(step);
         stepIdByRawIndex.set(index, step.step_id);
         const dependsOnIndices = extractDependsOnIndices(candidate);
-        if (dependsOnIndices.length > 0) dependsOnIndicesByStepId.set(step.step_id, dependsOnIndices);
+        if (dependsOnIndices.length > 0)
+          dependsOnIndicesByStepId.set(step.step_id, dependsOnIndices);
       } else {
         options.logger?.warning("planner.llm.candidate_rejected", { goal, index });
       }
@@ -162,7 +163,9 @@ function extractDependsOnIndices(candidate: unknown): readonly number[] {
   if (typeof candidate !== "object" || candidate === null) return [];
   const raw = candidate as RawStepCandidate;
   if (!Array.isArray(raw.depends_on_indices)) return [];
-  return raw.depends_on_indices.filter((value): value is number => typeof value === "number" && Number.isInteger(value));
+  return raw.depends_on_indices.filter(
+    (value): value is number => typeof value === "number" && Number.isInteger(value),
+  );
 }
 
 function groundCandidate(
@@ -174,11 +177,14 @@ function groundCandidate(
 ): ExecutionStep | undefined {
   if (typeof candidate !== "object" || candidate === null) return undefined;
   const raw = candidate as RawStepCandidate;
-  if (typeof raw.resolved_tool_id !== "string" || typeof raw.action_id !== "string") return undefined;
+  if (typeof raw.resolved_tool_id !== "string" || typeof raw.action_id !== "string")
+    return undefined;
 
   const tool = tools.get(raw.resolved_tool_id);
   if (!tool.ok) return undefined;
-  const action = tool.value.supported_actions.find((candidateAction) => candidateAction.action_id === raw.action_id);
+  const action = tool.value.supported_actions.find(
+    (candidateAction) => candidateAction.action_id === raw.action_id,
+  );
   if (!action) return undefined;
 
   const parameters =
@@ -186,7 +192,9 @@ function groundCandidate(
       ? (raw.parameters as Readonly<Record<string, unknown>>)
       : {};
   const capabilityId =
-    typeof raw.capability_id === "string" && raw.capability_id.length > 0 ? raw.capability_id : tool.value.tool_id;
+    typeof raw.capability_id === "string" && raw.capability_id.length > 0
+      ? raw.capability_id
+      : tool.value.tool_id;
 
   return {
     step_id: `llm-step-${now()}-${index}`,

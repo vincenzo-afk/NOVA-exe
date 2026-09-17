@@ -98,17 +98,24 @@ export class MetricsRegistry {
    * Aggregates every label combination recorded for `name` into one
    * summary per label set — the shape `nova metrics --json` returns.
    */
-  public query(name: string): ReadonlyArray<{ readonly labels: Readonly<Record<string, string>> } & MetricSummary> {
+  public query(
+    name: string,
+  ): ReadonlyArray<{ readonly labels: Readonly<Record<string, string>> } & MetricSummary> {
     const kind = this.kinds.get(name);
     if (!kind) return [];
-    const results: Array<{ readonly labels: Readonly<Record<string, string>> } & MetricSummary> = [];
+    const results: Array<{ readonly labels: Readonly<Record<string, string>> } & MetricSummary> =
+      [];
     for (const [seriesKey, samples] of this.series) {
       if (!seriesKey.startsWith(`${name}\u0000`)) continue;
       const labels = samples[0]?.labels ?? {};
       if (kind === "gauge") {
         results.push({ labels, kind, value: samples[samples.length - 1]?.value ?? 0 });
       } else if (kind === "counter") {
-        results.push({ labels, kind, value: samples.reduce((sum, sample) => sum + sample.value, 0) });
+        results.push({
+          labels,
+          kind,
+          value: samples.reduce((sum, sample) => sum + sample.value, 0),
+        });
       } else {
         const values = samples.map((sample) => sample.value);
         const sum = values.reduce((total, value) => total + value, 0);
@@ -155,7 +162,9 @@ export class FileMetricStore implements MetricSink {
     return registry;
   }
 
-  public query(name: string): ReadonlyArray<{ readonly labels: Readonly<Record<string, string>> } & MetricSummary> {
+  public query(
+    name: string,
+  ): ReadonlyArray<{ readonly labels: Readonly<Record<string, string>> } & MetricSummary> {
     return this.replay().query(name);
   }
 

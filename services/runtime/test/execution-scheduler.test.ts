@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { describe, expect, it } from "vitest";
 
 import { computeExecutionGroups } from "../src/execution-scheduler.js";
@@ -22,7 +23,11 @@ function step(overrides: Partial<ExecutionStep> & { step_id: string }): Executio
 
 describe("computeExecutionGroups", () => {
   it("puts independent steps with no declared dependencies in a single concurrent group", () => {
-    const result = computeExecutionGroups([step({ step_id: "a" }), step({ step_id: "b" }), step({ step_id: "c" })]);
+    const result = computeExecutionGroups([
+      step({ step_id: "a" }),
+      step({ step_id: "b" }),
+      step({ step_id: "c" }),
+    ]);
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;

@@ -273,10 +273,22 @@ describe("KnowledgeGraph alias tracking and manual merge/split", () => {
   it("merges a duplicate node into a canonical one, re-pointing edges and preserving the alias", () => {
     const graph = new KnowledgeGraph();
     graph.addNode(project);
-    const duplicate: GraphNode = { id: "project-2", type: "Project", name: "NovaApp", properties: {}, active: true };
+    const duplicate: GraphNode = {
+      id: "project-2",
+      type: "Project",
+      name: "NovaApp",
+      properties: {},
+      active: true,
+    };
     graph.addNode(duplicate);
     graph.addNode(file);
-    graph.addEdge({ id: "edge-1", type: "belongs_to", from_node_id: "file-1", to_node_id: "project-2", weight: 1 });
+    graph.addEdge({
+      id: "edge-1",
+      type: "belongs_to",
+      from_node_id: "file-1",
+      to_node_id: "project-2",
+      weight: 1,
+    });
 
     const merged = graph.mergeNodes("project-1", "project-2");
 
@@ -333,7 +345,13 @@ describe("KnowledgeGraph alias tracking and manual merge/split", () => {
     graph.addNode(project);
     graph.addAlias("project-1", "Kingston Connect");
     graph.addNode(file);
-    graph.addEdge({ id: "edge-1", type: "belongs_to", from_node_id: "file-1", to_node_id: "project-1", weight: 1 });
+    graph.addEdge({
+      id: "edge-1",
+      type: "belongs_to",
+      from_node_id: "file-1",
+      to_node_id: "project-1",
+      weight: 1,
+    });
 
     const split = graph.splitNode(
       "project-1",

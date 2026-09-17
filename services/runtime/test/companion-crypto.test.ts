@@ -41,7 +41,10 @@ describe("companion-crypto", () => {
     const pair = generateCompanionKeyPair();
     const otherPair = generateCompanionKeyPair();
     const key = deriveSessionKey(pair.privateKeyB64, otherPair.publicKeyB64);
-    const wrongKey = deriveSessionKey(otherPair.privateKeyB64, generateCompanionKeyPair().publicKeyB64);
+    const wrongKey = deriveSessionKey(
+      otherPair.privateKeyB64,
+      generateCompanionKeyPair().publicKeyB64,
+    );
     expect(key.ok && wrongKey.ok).toBe(true);
     if (!key.ok || !wrongKey.ok) return;
 
@@ -57,6 +60,8 @@ describe("companion-crypto", () => {
     const signature = signChallenge(pair.privateKeyB64, challenge);
 
     expect(verifyChallengeSignature(pair.publicKeyB64, challenge, signature)).toBe(true);
-    expect(verifyChallengeSignature(pair.publicKeyB64, Buffer.from("tampered"), signature)).toBe(false);
+    expect(verifyChallengeSignature(pair.publicKeyB64, Buffer.from("tampered"), signature)).toBe(
+      false,
+    );
   });
 });

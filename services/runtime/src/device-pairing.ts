@@ -141,7 +141,9 @@ export class DevicePairingManager {
    */
   public verifyChannelToken(code: string, channelToken: string): boolean {
     const offer = this.offers.get(code);
-    return offer !== undefined && this.now() < offer.expires_at && offer.channel_token === channelToken;
+    return (
+      offer !== undefined && this.now() < offer.expires_at && offer.channel_token === channelToken
+    );
   }
 
   public listTrusted(): readonly TrustedDevice[] {

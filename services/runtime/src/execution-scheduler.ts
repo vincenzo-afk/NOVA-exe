@@ -78,7 +78,7 @@ export function computeExecutionGroups(
   }
 
   const groups: ExecutionStep[][] = [];
-  let ready = steps.filter((step) => remainingDependencies.get(step.step_id)!.size === 0);
+  let ready = steps.filter((step) => remainingDependencies.get(step.step_id)?.size === 0);
   const scheduled = new Set<string>();
 
   while (ready.length > 0) {
@@ -105,16 +105,20 @@ export function computeExecutionGroups(
     const nextReady: ExecutionStep[] = [...deferred];
     for (const step of group) {
       for (const dependentId of dependents.get(step.step_id) ?? []) {
-        const remaining = remainingDependencies.get(dependentId)!;
+        const remaining = remainingDependencies.get(dependentId);
+        const dependent = byId.get(dependentId);
+        if (!remaining || !dependent) continue;
         remaining.delete(step.step_id);
-        if (remaining.size === 0) nextReady.push(byId.get(dependentId)!);
+        if (remaining.size === 0) nextReady.push(dependent);
       }
     }
     ready = nextReady;
   }
 
   if (scheduled.size !== steps.length) {
-    const unresolved = steps.filter((step) => !scheduled.has(step.step_id)).map((step) => step.step_id);
+    const unresolved = steps
+      .filter((step) => !scheduled.has(step.step_id))
+      .map((step) => step.step_id);
     return err({
       code: "NOVA-TL003",
       message: `Plan has a dependency cycle involving step(s): ${unresolved.join(", ")}.`,

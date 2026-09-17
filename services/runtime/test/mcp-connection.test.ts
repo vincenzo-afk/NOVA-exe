@@ -1,10 +1,15 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { EventEmitter } from "node:events";
 import { describe, expect, it, vi } from "vitest";
 
 import { McpConnection, type McpSpawnFn, type SpawnedMcpProcess } from "../src/mcp-connection.js";
 
 /** A minimal, honest fake of the handful of child-process members McpConnection actually uses — not the entire Node child-process API. */
-function fakeProcess(): SpawnedMcpProcess & { readonly emitter: EventEmitter; readonly stdoutEmitter: EventEmitter; readonly written: string[] } {
+function fakeProcess(): SpawnedMcpProcess & {
+  readonly emitter: EventEmitter;
+  readonly stdoutEmitter: EventEmitter;
+  readonly written: string[];
+} {
   const emitter = new EventEmitter();
   const stdoutEmitter = new EventEmitter();
   const written: string[] = [];
@@ -36,10 +41,18 @@ describe("McpConnection (stdio)", () => {
       spawnFn,
     });
 
-    const requestPromise = connection.request({ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} });
+    const requestPromise = connection.request({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "tools/list",
+      params: {},
+    });
     // Simulate the server writing its line-delimited JSON-RPC response.
     queueMicrotask(() => {
-      proc.stdoutEmitter.emit("data", `${JSON.stringify({ jsonrpc: "2.0", id: 1, result: { tools: [] } })}\n`);
+      proc.stdoutEmitter.emit(
+        "data",
+        `${JSON.stringify({ jsonrpc: "2.0", id: 1, result: { tools: [] } })}\n`,
+      );
     });
 
     const result = await requestPromise;
@@ -51,13 +64,22 @@ describe("McpConnection (stdio)", () => {
 
   it("correlates concurrent requests by id, even when responses arrive out of order", async () => {
     const proc = fakeProcess();
-    const connection = new McpConnection({ plan: { transport: "stdio", command: "mcp-server", args: [] }, spawnFn: () => proc });
+    const connection = new McpConnection({
+      plan: { transport: "stdio", command: "mcp-server", args: [] },
+      spawnFn: () => proc,
+    });
 
     const first = connection.request({ jsonrpc: "2.0", id: 1, method: "a", params: {} });
     const second = connection.request({ jsonrpc: "2.0", id: 2, method: "b", params: {} });
     queueMicrotask(() => {
-      proc.stdoutEmitter.emit("data", `${JSON.stringify({ jsonrpc: "2.0", id: 2, result: "second" })}\n`);
-      proc.stdoutEmitter.emit("data", `${JSON.stringify({ jsonrpc: "2.0", id: 1, result: "first" })}\n`);
+      proc.stdoutEmitter.emit(
+        "data",
+        `${JSON.stringify({ jsonrpc: "2.0", id: 2, result: "second" })}\n`,
+      );
+      proc.stdoutEmitter.emit(
+        "data",
+        `${JSON.stringify({ jsonrpc: "2.0", id: 1, result: "first" })}\n`,
+      );
     });
 
     expect(await first).toMatchObject({ ok: true, value: { result: "first" } });
@@ -66,7 +88,10 @@ describe("McpConnection (stdio)", () => {
 
   it("handles a response split across multiple stdout chunks", async () => {
     const proc = fakeProcess();
-    const connection = new McpConnection({ plan: { transport: "stdio", command: "mcp-server", args: [] }, spawnFn: () => proc });
+    const connection = new McpConnection({
+      plan: { transport: "stdio", command: "mcp-server", args: [] },
+      spawnFn: () => proc,
+    });
 
     const requestPromise = connection.request({ jsonrpc: "2.0", id: 1, method: "a", params: {} });
     const fullLine = `${JSON.stringify({ jsonrpc: "2.0", id: 1, result: "chunked" })}\n`;
@@ -80,7 +105,10 @@ describe("McpConnection (stdio)", () => {
 
   it("fails every pending request when the process exits", async () => {
     const proc = fakeProcess();
-    const connection = new McpConnection({ plan: { transport: "stdio", command: "mcp-server", args: [] }, spawnFn: () => proc });
+    const connection = new McpConnection({
+      plan: { transport: "stdio", command: "mcp-server", args: [] },
+      spawnFn: () => proc,
+    });
 
     const requestPromise = connection.request({ jsonrpc: "2.0", id: 1, method: "a", params: {} });
     queueMicrotask(() => proc.emitter.emit("exit", 1));
@@ -104,7 +132,10 @@ describe("McpConnection (stdio)", () => {
 
   it("rejects new requests after close()", async () => {
     const proc = fakeProcess();
-    const connection = new McpConnection({ plan: { transport: "stdio", command: "mcp-server", args: [] }, spawnFn: () => proc });
+    const connection = new McpConnection({
+      plan: { transport: "stdio", command: "mcp-server", args: [] },
+      spawnFn: () => proc,
+    });
     await connection.connect();
     await connection.close();
 
@@ -126,7 +157,12 @@ describe("McpConnection (streamable-http)", () => {
       fetcher,
     });
 
-    const result = await connection.request({ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} });
+    const result = await connection.request({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "tools/list",
+      params: {},
+    });
 
     expect(fetcher).toHaveBeenCalledWith(
       "https://example.com/mcp",
@@ -136,19 +172,35 @@ describe("McpConnection (streamable-http)", () => {
   });
 
   it("returns a retryable error on a 5xx response and a non-retryable one on 4xx", async () => {
-    const serverErrorFetcher = vi.fn(async () => ({ ok: false, status: 503 })) as unknown as typeof fetch;
+    const serverErrorFetcher = vi.fn(async () => ({
+      ok: false,
+      status: 503,
+    })) as unknown as typeof fetch;
     const serverErrorConnection = new McpConnection({
       plan: { transport: "streamable-http", endpoint: "https://example.com/mcp" },
       fetcher: serverErrorFetcher,
     });
-    const clientErrorFetcher = vi.fn(async () => ({ ok: false, status: 401 })) as unknown as typeof fetch;
+    const clientErrorFetcher = vi.fn(async () => ({
+      ok: false,
+      status: 401,
+    })) as unknown as typeof fetch;
     const clientErrorConnection = new McpConnection({
       plan: { transport: "streamable-http", endpoint: "https://example.com/mcp" },
       fetcher: clientErrorFetcher,
     });
 
-    const serverErrorResult = await serverErrorConnection.request({ jsonrpc: "2.0", id: 1, method: "a", params: {} });
-    const clientErrorResult = await clientErrorConnection.request({ jsonrpc: "2.0", id: 1, method: "a", params: {} });
+    const serverErrorResult = await serverErrorConnection.request({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "a",
+      params: {},
+    });
+    const clientErrorResult = await clientErrorConnection.request({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "a",
+      params: {},
+    });
 
     expect(serverErrorResult).toMatchObject({ ok: false, error: { retryable: true } });
     expect(clientErrorResult).toMatchObject({ ok: false, error: { retryable: false } });
@@ -162,7 +214,11 @@ describe("McpConnection (streamable-http)", () => {
     }));
     const resolveCredential = vi.fn(async (reference: string) => `secret-for-${reference}`);
     const connection = new McpConnection({
-      plan: { transport: "streamable-http", endpoint: "https://example.com/mcp", auth_reference: "vault://mcp-key" },
+      plan: {
+        transport: "streamable-http",
+        endpoint: "https://example.com/mcp",
+        auth_reference: "vault://mcp-key",
+      },
       fetcher: mockFetch as unknown as typeof fetch,
       resolveCredential,
     });
@@ -171,12 +227,18 @@ describe("McpConnection (streamable-http)", () => {
 
     expect(resolveCredential).toHaveBeenCalledWith("vault://mcp-key");
     const [, init] = mockFetch.mock.calls[0]!;
-    expect((init!.headers as Headers).get("authorization")).toBe("Bearer secret-for-vault://mcp-key");
+    expect((init!.headers as Headers).get("authorization")).toBe(
+      "Bearer secret-for-vault://mcp-key",
+    );
   });
 
   it("fails clearly when an auth_reference is declared but no credential resolver was supplied", async () => {
     const connection = new McpConnection({
-      plan: { transport: "streamable-http", endpoint: "https://example.com/mcp", auth_reference: "vault://mcp-key" },
+      plan: {
+        transport: "streamable-http",
+        endpoint: "https://example.com/mcp",
+        auth_reference: "vault://mcp-key",
+      },
     });
 
     const result = await connection.request({ jsonrpc: "2.0", id: 1, method: "a", params: {} });

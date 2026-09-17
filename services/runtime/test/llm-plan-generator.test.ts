@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { describe, expect, it } from "vitest";
 
 import { createLlmPlanGenerator } from "../src/llm-plan-generator.js";
@@ -13,7 +14,12 @@ function fakeProvider(respond: (request: ModelRequest) => string): LlmProvider {
       privacy_class: "cloud",
       schema_version: "1.0.0",
       cost_per_1k_tokens: 0,
-      capabilities: { tool_calls: false, vision_input: false, streaming: false, max_context_tokens: 8_000 },
+      capabilities: {
+        tool_calls: false,
+        vision_input: false,
+        streaming: false,
+        max_context_tokens: 8_000,
+      },
     },
     async healthCheck() {
       return "reachable";
@@ -104,7 +110,9 @@ describe("createLlmPlanGenerator", () => {
   it("drops a candidate referencing a tool or action that isn't in the registry, rather than fabricating a step", async () => {
     const router = new ModelRouter([
       fakeProvider(() =>
-        JSON.stringify([{ resolved_tool_id: "tool.made-up", action_id: "do_anything", parameters: {} }]),
+        JSON.stringify([
+          { resolved_tool_id: "tool.made-up", action_id: "do_anything", parameters: {} },
+        ]),
       ),
     ]);
     const generator = createLlmPlanGenerator({ router, tools: buildToolRegistry() });
@@ -118,7 +126,11 @@ describe("createLlmPlanGenerator", () => {
     const router = new ModelRouter([
       fakeProvider(() =>
         JSON.stringify([
-          { resolved_tool_id: "tool.filesystem", action_id: "read_file", parameters: { path: "/a.txt" } },
+          {
+            resolved_tool_id: "tool.filesystem",
+            action_id: "read_file",
+            parameters: { path: "/a.txt" },
+          },
           {
             resolved_tool_id: "tool.filesystem",
             action_id: "write_file",

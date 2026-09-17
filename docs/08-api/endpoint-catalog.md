@@ -12,7 +12,7 @@ domains.
 ## Scope
 
 Method, path, and one-line purpose per endpoint. Request/response body
-shapes are `docs/08-api/schemas.md`; authentication is `docs/08-api/
+shapes are docs/08-api/schemas.md; authentication is docs/08-api/
 sdk.md`'s trust model; pagination behavior for list endpoints is
 `pagination.md`.
 

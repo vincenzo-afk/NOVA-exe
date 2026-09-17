@@ -402,7 +402,10 @@ export class Verifier {
 
   constructor(
     logger?: StructuredLogger,
-    options?: { readonly toolRegistry?: ToolRegistry; readonly worldModel?: WorldModelSnapshotSource },
+    options?: {
+      readonly toolRegistry?: ToolRegistry;
+      readonly worldModel?: WorldModelSnapshotSource;
+    },
   ) {
     this.logger = logger;
     this.toolRegistry = options?.toolRegistry;
@@ -511,7 +514,11 @@ export class Verifier {
           };
         }
         if (status >= 200 && status < 300) {
-          return { outcome: "verified", confidence: 1, explanation: `API responded with status ${status}.` };
+          return {
+            outcome: "verified",
+            confidence: 1,
+            explanation: `API responded with status ${status}.`,
+          };
         }
         return {
           outcome: "failed",
@@ -530,11 +537,16 @@ export class Verifier {
         const expected = step.parameters["expected_file_hash"];
         if (typeof expected === "string") {
           return expected === evidence.value
-            ? { outcome: "verified", confidence: 1, explanation: "File hash matches the expected hash." }
+            ? {
+                outcome: "verified",
+                confidence: 1,
+                explanation: "File hash matches the expected hash.",
+              }
             : {
                 outcome: "failed",
                 confidence: 1,
-                explanation: "File hash does not match the expected hash — the file's actual content differs from what was planned.",
+                explanation:
+                  "File hash does not match the expected hash — the file's actual content differs from what was planned.",
               };
         }
         // A hash was produced, but nothing declared what it should have been —
@@ -542,7 +554,8 @@ export class Verifier {
         return {
           outcome: "verified",
           confidence: 0.6,
-          explanation: "A file hash was produced, but no expected_file_hash was declared to compare it against.",
+          explanation:
+            "A file hash was produced, but no expected_file_hash was declared to compare it against.",
         };
       }
       case "accessibility_state": {
@@ -560,7 +573,11 @@ export class Verifier {
             ([key, value]) => actual[key] !== value,
           );
           return mismatches.length === 0
-            ? { outcome: "verified", confidence: 1, explanation: "Accessibility state matches every expected field." }
+            ? {
+                outcome: "verified",
+                confidence: 1,
+                explanation: "Accessibility state matches every expected field.",
+              }
             : {
                 outcome: "failed",
                 confidence: 1,
@@ -570,7 +587,8 @@ export class Verifier {
         return {
           outcome: "verified",
           confidence: 0.6,
-          explanation: "An accessibility state snapshot was captured, but no expected_state was declared to compare it against.",
+          explanation:
+            "An accessibility state snapshot was captured, but no expected_state was declared to compare it against.",
         };
       }
       default:
@@ -590,7 +608,12 @@ export class Verifier {
   private corroborateWithWorldModel(
     step: ExecutionStep,
     primary: { outcome: VerificationOutcome; confidence: number; explanation: string },
-  ): { outcome: VerificationOutcome; confidence: number; verification_method: "ground_truth" | "vision_secondary"; explanation: string } {
+  ): {
+    outcome: VerificationOutcome;
+    confidence: number;
+    verification_method: "ground_truth" | "vision_secondary";
+    explanation: string;
+  } {
     const lowerTrustTier =
       step.execution_tier === "accessibility" ||
       step.execution_tier === "vision" ||
@@ -603,7 +626,9 @@ export class Verifier {
     if (typeof expectedApplication !== "string") {
       return { ...primary, verification_method: "ground_truth" };
     }
-    const running = this.worldModel.runningApplications().some((app) => app.id === expectedApplication);
+    const running = this.worldModel
+      .runningApplications()
+      .some((app) => app.id === expectedApplication);
     if (running) {
       return {
         outcome: "verified",
@@ -620,7 +645,9 @@ export class Verifier {
     };
   }
 
-  private lookupDeclaration(step: ExecutionStep): { readonly verification_signal: string } | undefined {
+  private lookupDeclaration(
+    step: ExecutionStep,
+  ): { readonly verification_signal: string } | undefined {
     if (!this.toolRegistry) return undefined;
     const tool = this.toolRegistry.get(step.resolved_tool_id);
     if (!tool.ok) return undefined;

@@ -1,5 +1,5 @@
 import type { GraphNode } from "./knowledge-graph.js";
-import { KnowledgeGraph } from "./knowledge-graph.js";
+import type { KnowledgeGraph } from "./knowledge-graph.js";
 import { EntityResolver, type SemanticMatcher } from "./entity-resolution.js";
 
 /**
@@ -24,7 +24,12 @@ export interface ObjectObservation {
   /** A fuller natural-language description used for semantic matching against existing PhysicalObject nodes. */
   readonly description: string;
   /** Normalized (0..1) bounding box within the frame, when the provider supplies one — used only for the same-frame vs. moved heuristic below, never as a 3D position. */
-  readonly boundingBox?: { readonly x: number; readonly y: number; readonly width: number; readonly height: number };
+  readonly boundingBox?: {
+    readonly x: number;
+    readonly y: number;
+    readonly width: number;
+    readonly height: number;
+  };
   readonly observedAtEpochMs: number;
   readonly sourceDeviceId: string;
 }
@@ -66,7 +71,8 @@ export class SpatialContext {
     this.resolver = new EntityResolver(graph, semanticMatcher);
     this.windowMs = options.windowMs ?? 5 * 60_000;
     this.decayPerTick = options.decayPerTick ?? 0.15;
-    this.idGenerator = options.idGenerator ?? (() => `physobj_${Date.now()}_${(fallbackCounter += 1)}`);
+    this.idGenerator =
+      options.idGenerator ?? (() => `physobj_${Date.now()}_${(fallbackCounter += 1)}`);
   }
 
   /**
@@ -95,7 +101,10 @@ export class SpatialContext {
         id: this.idGenerator(),
         type: "PhysicalObject",
         name: observation.label,
-        properties: { description: observation.description, source_device_id: observation.sourceDeviceId },
+        properties: {
+          description: observation.description,
+          source_device_id: observation.sourceDeviceId,
+        },
         active: true,
         aliases: [observation.description],
       });
@@ -109,16 +118,24 @@ export class SpatialContext {
       via = "created_new";
     }
 
-    this.window.push({ node, observation, lastSeenAtEpochMs: observation.observedAtEpochMs, confidence: 0.8 });
+    this.window.push({
+      node,
+      observation,
+      lastSeenAtEpochMs: observation.observedAtEpochMs,
+      confidence: 0.8,
+    });
     return { node, via };
   }
 
   /** Applies staleness decay and prunes entries older than [windowMs] — call once per capture tick, not per observation. */
   public tick(nowEpochMs: number): void {
     for (const entry of this.window) {
-      if (entry.lastSeenAtEpochMs !== nowEpochMs) entry.confidence = Math.max(0, entry.confidence - this.decayPerTick);
+      if (entry.lastSeenAtEpochMs !== nowEpochMs)
+        entry.confidence = Math.max(0, entry.confidence - this.decayPerTick);
     }
-    while (this.window.length > 0 && nowEpochMs - this.window[0]!.lastSeenAtEpochMs > this.windowMs) {
+    while (this.window.length > 0) {
+      const first = this.window[0];
+      if (!first || nowEpochMs - first.lastSeenAtEpochMs <= this.windowMs) break;
       this.window.shift();
     }
   }

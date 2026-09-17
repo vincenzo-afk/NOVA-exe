@@ -85,6 +85,9 @@ describe("EntityResolver", () => {
   });
 
   it("flags the new node for merge review when the caller reports the ambiguity was never resolved", () => {
-    expect(EntityResolver.stillAmbiguous()).toEqual({ outcome: "create_new", flagForMergeReview: true });
+    expect(EntityResolver.stillAmbiguous()).toEqual({
+      outcome: "create_new",
+      flagForMergeReview: true,
+    });
   });
 });

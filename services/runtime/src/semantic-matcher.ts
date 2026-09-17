@@ -21,8 +21,24 @@ import type { SemanticMatcher } from "./entity-resolution.js";
  */
 
 const STOPWORDS = new Set([
-  "a", "an", "the", "of", "on", "in", "at", "to", "for", "and", "or",
-  "is", "my", "our", "this", "that", "it", "with",
+  "a",
+  "an",
+  "the",
+  "of",
+  "on",
+  "in",
+  "at",
+  "to",
+  "for",
+  "and",
+  "or",
+  "is",
+  "my",
+  "our",
+  "this",
+  "that",
+  "it",
+  "with",
 ]);
 
 export function tokenize(text: string): readonly string[] {
@@ -46,7 +62,10 @@ function substringBonus(mention: string, candidateText: string): number {
   const normalizedMention = mention.toLowerCase().trim();
   const normalizedCandidate = candidateText.toLowerCase().trim();
   if (normalizedMention.length === 0 || normalizedCandidate.length === 0) return 0;
-  if (normalizedCandidate.includes(normalizedMention) || normalizedMention.includes(normalizedCandidate)) {
+  if (
+    normalizedCandidate.includes(normalizedMention) ||
+    normalizedMention.includes(normalizedCandidate)
+  ) {
     const shorter = Math.min(normalizedMention.length, normalizedCandidate.length);
     const longer = Math.max(normalizedMention.length, normalizedCandidate.length);
     return 0.3 * (shorter / longer);
@@ -68,9 +87,7 @@ export const lexicalSemanticMatcher: SemanticMatcher = (mention, candidates) => 
     }, 0);
     return { node, confidence: bestOverName };
   });
-  return scored
-    .filter((entry) => entry.confidence > 0)
-    .sort((a, b) => b.confidence - a.confidence);
+  return scored.filter((entry) => entry.confidence > 0).sort((a, b) => b.confidence - a.confidence);
 };
 
 /**
@@ -94,7 +111,9 @@ export function createEmbeddingSemanticMatcher(
       const similarity = nameVector ? cosineSimilarity(mentionVector, nameVector) : 0;
       return { node, confidence: Math.max(0, similarity) };
     });
-    return scored.filter((entry) => entry.confidence > 0).sort((a, b) => b.confidence - a.confidence);
+    return scored
+      .filter((entry) => entry.confidence > 0)
+      .sort((a, b) => b.confidence - a.confidence);
   };
 }
 
@@ -104,9 +123,11 @@ function cosineSimilarity(a: readonly number[], b: readonly number[]): number {
   let magnitudeA = 0;
   let magnitudeB = 0;
   for (let i = 0; i < length; i += 1) {
-    dot += a[i]! * b[i]!;
-    magnitudeA += a[i]! * a[i]!;
-    magnitudeB += b[i]! * b[i]!;
+    const valueA = a[i] ?? 0;
+    const valueB = b[i] ?? 0;
+    dot += valueA * valueB;
+    magnitudeA += valueA * valueA;
+    magnitudeB += valueB * valueB;
   }
   if (magnitudeA === 0 || magnitudeB === 0) return 0;
   return dot / (Math.sqrt(magnitudeA) * Math.sqrt(magnitudeB));

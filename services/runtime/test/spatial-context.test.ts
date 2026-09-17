@@ -43,7 +43,13 @@ describe("SpatialContext", () => {
     const graph = new KnowledgeGraph();
     const context = new SpatialContext(graph, noMatches);
     context.observe(observation({ label: "coffee mug", observedAtEpochMs: 1_000 }));
-    context.observe(observation({ label: "notebook", description: "a spiral notebook", observedAtEpochMs: 2_000 }));
+    context.observe(
+      observation({
+        label: "notebook",
+        description: "a spiral notebook",
+        observedAtEpochMs: 2_000,
+      }),
+    );
 
     const found = context.resolveReference("mug");
 

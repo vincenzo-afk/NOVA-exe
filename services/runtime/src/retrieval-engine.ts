@@ -49,7 +49,11 @@ export interface RetrievalEngineOptions {
 }
 
 const ALL_BRANCHES: readonly RetrievalBranch[] = [
-  "semantic", "keyword", "graph", "temporal", "entity",
+  "semantic",
+  "keyword",
+  "graph",
+  "temporal",
+  "entity",
 ];
 
 export class RetrievalEngine {
@@ -83,9 +87,10 @@ export class RetrievalEngine {
     return ok(this.fusion.fuse(branches));
   }
 
-  private matchQueryEntities(
-    queryTokens: readonly string[],
-  ): { readonly primaryMatches: readonly string[]; readonly neighborNames: ReadonlySet<string> } {
+  private matchQueryEntities(queryTokens: readonly string[]): {
+    readonly primaryMatches: readonly string[];
+    readonly neighborNames: ReadonlySet<string>;
+  } {
     const graph = this.options.graph;
     if (!graph) return { primaryMatches: [], neighborNames: new Set() };
 
@@ -136,7 +141,8 @@ export class RetrievalEngine {
       relationship_distance: graphScore > 0 ? 1 : entityScore > 0 ? 0 : Number.POSITIVE_INFINITY,
       usage_frequency: 0,
       pinned: false,
-      project_relevance: filters?.project && contentLower.includes(filters.project.toLowerCase()) ? 1 : 0,
+      project_relevance:
+        filters?.project && contentLower.includes(filters.project.toLowerCase()) ? 1 : 0,
       inactive: record.status === "SUPERSEDED" && filters?.include_superseded !== true,
     };
   }

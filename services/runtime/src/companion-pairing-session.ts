@@ -3,7 +3,8 @@ import { randomBytes } from "node:crypto";
 import { err, ok, type Result } from "@nova/shared";
 
 import { deriveSessionKey, signChallenge, type CompanionKeyPair } from "./companion-crypto.js";
-import { DevicePairingManager, type PairingOffer, type PairingRequest, type TrustedDevice } from "./device-pairing.js";
+import type { DevicePairingManager } from "./device-pairing.js";
+import { type PairingOffer, type PairingRequest, type TrustedDevice } from "./device-pairing.js";
 
 /**
  * Wires the already-correct pairing handshake logic
@@ -74,7 +75,11 @@ export class CompanionSessionStore {
   public grantPartition(deviceId: string, partition: string): Result<void> {
     const session = this.sessions.get(deviceId);
     if (!session) {
-      return err({ code: "NOVA-SEC001", message: "No active session for this device.", retryable: false });
+      return err({
+        code: "NOVA-SEC001",
+        message: "No active session for this device.",
+        retryable: false,
+      });
     }
     session.grantedPartitions.add(partition);
     return ok(undefined);
@@ -114,7 +119,11 @@ export class CompanionPairingCoordinator {
    */
   public signChallenge(code: string, channelToken: string, challengeB64: string): Result<string> {
     if (!this.pairing.verifyChannelToken(code, channelToken)) {
-      return err({ code: "NOVA-SEC001", message: "Invalid or expired pairing channel token.", retryable: false });
+      return err({
+        code: "NOVA-SEC001",
+        message: "Invalid or expired pairing channel token.",
+        retryable: false,
+      });
     }
     const challenge = Buffer.from(challengeB64, "base64");
     return ok(signChallenge(this.desktopKeyPair.privateKeyB64, challenge));
@@ -127,7 +136,10 @@ export class CompanionPairingCoordinator {
     const paired = this.pairing.completePairing(code, request);
     if (!paired.ok) return paired;
 
-    const sessionKey = deriveSessionKey(this.desktopKeyPair.privateKeyB64, request.device_public_key);
+    const sessionKey = deriveSessionKey(
+      this.desktopKeyPair.privateKeyB64,
+      request.device_public_key,
+    );
     if (!sessionKey.ok) return sessionKey;
 
     const token = this.tokens.issue(paired.value.device_id);

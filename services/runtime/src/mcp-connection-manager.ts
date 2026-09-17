@@ -37,8 +37,12 @@ export class McpConnectionManager {
 
     const connection = new McpConnection({
       plan: plan.value,
-      ...(this.options.resolveCredential ? { resolveCredential: this.options.resolveCredential } : {}),
-      ...(this.options.requestTimeoutMs === undefined ? {} : { requestTimeoutMs: this.options.requestTimeoutMs }),
+      ...(this.options.resolveCredential
+        ? { resolveCredential: this.options.resolveCredential }
+        : {}),
+      ...(this.options.requestTimeoutMs === undefined
+        ? {}
+        : { requestTimeoutMs: this.options.requestTimeoutMs }),
       ...(this.options.fetcher ? { fetcher: this.options.fetcher } : {}),
       ...(this.options.spawnFn ? { spawnFn: this.options.spawnFn } : {}),
     });
@@ -61,7 +65,11 @@ export class McpConnectionManager {
     const connection = this.connections.get(serverId);
     return connection
       ? ok(connection)
-      : err({ code: "NOVA-NET001", message: `No active MCP connection for server '${serverId}'.`, retryable: false });
+      : err({
+          code: "NOVA-NET001",
+          message: `No active MCP connection for server '${serverId}'.`,
+          retryable: false,
+        });
   }
 
   public isConnected(serverId: string): boolean {

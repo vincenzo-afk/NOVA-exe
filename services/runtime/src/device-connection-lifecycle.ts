@@ -83,7 +83,8 @@ export class DeviceConnectionLifecycle {
     this.degradeAfter = options.degradeAfterConsecutiveSamples ?? DEFAULT_CONSECUTIVE_SAMPLES;
     this.recoverAfter = options.recoverAfterConsecutiveSamples ?? DEFAULT_CONSECUTIVE_SAMPLES;
     this.latencyThresholdMs = options.latencyDegradedThresholdMs ?? DEFAULT_LATENCY_THRESHOLD_MS;
-    this.packetLossThresholdPct = options.packetLossDegradedThresholdPct ?? DEFAULT_PACKET_LOSS_THRESHOLD_PCT;
+    this.packetLossThresholdPct =
+      options.packetLossDegradedThresholdPct ?? DEFAULT_PACKET_LOSS_THRESHOLD_PCT;
   }
 
   public currentState(): ConnectionState {
@@ -112,7 +113,8 @@ export class DeviceConnectionLifecycle {
 
   /** New-device path: pairing succeeded (see entity/device pairing protocol, not this file's concern) — authenticate next, same as a known device now would. */
   public pairingSucceeded(): void {
-    if (this.state !== "pairing") throw new Error(`Cannot complete pairing from state '${this.state}'.`);
+    if (this.state !== "pairing")
+      throw new Error(`Cannot complete pairing from state '${this.state}'.`);
     this.transitionTo("authenticating");
   }
 
@@ -122,7 +124,11 @@ export class DeviceConnectionLifecycle {
    * authentication succeeded; on failure the state machine returns to
    * `disconnected` rather than silently trusting a name match.
    */
-  public authenticate(candidate: DiscoveredCandidate, storedKeysByDeviceId: ReadonlyMap<string, string>, presentedKey: string): boolean {
+  public authenticate(
+    candidate: DiscoveredCandidate,
+    storedKeysByDeviceId: ReadonlyMap<string, string>,
+    presentedKey: string,
+  ): boolean {
     if (this.state !== "authenticating") {
       throw new Error(`Cannot authenticate from state '${this.state}'.`);
     }
@@ -149,18 +155,25 @@ export class DeviceConnectionLifecycle {
   public recordHeartbeat(sample: HeartbeatSample): void {
     if (this.state !== "connected_healthy" && this.state !== "connected_degraded") return;
     const isBad =
-      sample.latencyMs >= this.latencyThresholdMs || sample.packetLossPct >= this.packetLossThresholdPct;
+      sample.latencyMs >= this.latencyThresholdMs ||
+      sample.packetLossPct >= this.packetLossThresholdPct;
 
     if (isBad) {
       this.consecutiveDegradedSamples += 1;
       this.consecutiveHealthySamples = 0;
-      if (this.state === "connected_healthy" && this.consecutiveDegradedSamples >= this.degradeAfter) {
+      if (
+        this.state === "connected_healthy" &&
+        this.consecutiveDegradedSamples >= this.degradeAfter
+      ) {
         this.transitionTo("connected_degraded");
       }
     } else {
       this.consecutiveHealthySamples += 1;
       this.consecutiveDegradedSamples = 0;
-      if (this.state === "connected_degraded" && this.consecutiveHealthySamples >= this.recoverAfter) {
+      if (
+        this.state === "connected_degraded" &&
+        this.consecutiveHealthySamples >= this.recoverAfter
+      ) {
         this.transitionTo("connected_healthy");
       }
     }
@@ -178,14 +191,16 @@ export class DeviceConnectionLifecycle {
   }
 
   public reconnected(): void {
-    if (this.state !== "reconnecting") throw new Error(`Cannot complete a reconnect from state '${this.state}'.`);
+    if (this.state !== "reconnecting")
+      throw new Error(`Cannot complete a reconnect from state '${this.state}'.`);
     this.consecutiveDegradedSamples = 0;
     this.consecutiveHealthySamples = 0;
     this.transitionTo("connected_healthy");
   }
 
   public reconnectAbandoned(): void {
-    if (this.state !== "reconnecting") throw new Error(`Cannot abandon a reconnect from state '${this.state}'.`);
+    if (this.state !== "reconnecting")
+      throw new Error(`Cannot abandon a reconnect from state '${this.state}'.`);
     this.authenticatedDeviceId = undefined;
     this.transitionTo("disconnected");
   }

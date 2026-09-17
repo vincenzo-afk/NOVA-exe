@@ -28,7 +28,10 @@ export class CompanionSyncBroker {
   private readonly clocksByDevice = new Map<string, number>();
 
   /** Appends envelopes to a device's channel, returning the log's new head clock. */
-  public push(deviceId: string, envelopes: readonly EncryptedEnvelope[]): Result<{ next_clock: number }> {
+  public push(
+    deviceId: string,
+    envelopes: readonly EncryptedEnvelope[],
+  ): Result<{ next_clock: number }> {
     if (envelopes.length === 0) return ok({ next_clock: this.clocksByDevice.get(deviceId) ?? 0 });
     const log = this.logsByDevice.get(deviceId) ?? [];
     let clock = this.clocksByDevice.get(deviceId) ?? 0;
@@ -47,7 +50,11 @@ export class CompanionSyncBroker {
     sinceLogicalClock: number,
   ): Result<{ next_clock: number; envelopes: readonly EncryptedEnvelope[] }> {
     if (!Number.isSafeInteger(sinceLogicalClock) || sinceLogicalClock < 0) {
-      return err({ code: "NOVA-EVT001", message: "sinceLogicalClock must be a non-negative integer.", retryable: false });
+      return err({
+        code: "NOVA-EVT001",
+        message: "sinceLogicalClock must be a non-negative integer.",
+        retryable: false,
+      });
     }
     const log = this.logsByDevice.get(deviceId) ?? [];
     const entries = log.filter((entry) => entry.logical_clock > sinceLogicalClock);

@@ -31,8 +31,8 @@ repository's level of abstraction.
 One-time or admin-path operations (index rebuild, backup, migration) are
 explicitly out of scope — those are allowed to be O(n) in total data
 size because they run rarely and off the interactive-latency path,
-governed instead by `docs/13-devops/backup.md`'s and `docs/38-disaster-
-recovery/migration.md`'s own timing expectations, not this file's
+governed instead by docs/13-devops/backup.md's and docs/38-disaster-
+recovery/migration.md's own timing expectations, not this file's
 per-query budgets.
 
 ## Related documents

@@ -35,7 +35,10 @@ const tool: ToolRegistration = {
       idempotent: true,
       execute: vi.fn(async (parameters) => ({
         status: "success" as const,
-        evidence: { type: "api_response" as const, value: { status: 200, echoed: parameters.value } },
+        evidence: {
+          type: "api_response" as const,
+          value: { status: 200, echoed: parameters.value },
+        },
         affected_resources: [],
       })),
     },
@@ -344,7 +347,8 @@ describe("RuntimeTaskCoordinator", () => {
       tasks,
       planner: new Planner({
         deterministic: new Map([["flaky then recover", failingStep]]),
-        llmPlanner: async (goal) => (goal.includes("Automatic replan attempt 1") ? [recoveryStep] : []),
+        llmPlanner: async (goal) =>
+          goal.includes("Automatic replan attempt 1") ? [recoveryStep] : [],
       }),
       executor: new Executor(
         new PermissionManager({
@@ -386,7 +390,12 @@ describe("RuntimeTaskCoordinator", () => {
       tool_id: "tool.always-flaky",
       deterministic: true,
       actions: {
-        run: { risk_tier: "read_only", verification_signal: "exit_code", idempotent: true, execute: alwaysFailingExecute },
+        run: {
+          risk_tier: "read_only",
+          verification_signal: "exit_code",
+          idempotent: true,
+          execute: alwaysFailingExecute,
+        },
       },
     };
     const failingStep = { ...step, resolved_tool_id: failingTool.tool_id };
@@ -402,7 +411,10 @@ describe("RuntimeTaskCoordinator", () => {
         },
       }),
       executor: new Executor(
-        new PermissionManager({ allowedToolIds: new Set([failingTool.tool_id]), confirmationTimeoutMs: 30_000 }),
+        new PermissionManager({
+          allowedToolIds: new Set([failingTool.tool_id]),
+          confirmationTimeoutMs: 30_000,
+        }),
         new Map([[failingTool.tool_id, failingTool]]),
       ),
       verifier: new Verifier(),
@@ -435,7 +447,11 @@ describe("RuntimeTaskCoordinator", () => {
             events.push(`${id}:start`);
             await new Promise((resolve) => setTimeout(resolve, delayMs));
             events.push(`${id}:end`);
-            return { status: "success" as const, evidence: { type: "exit_code" as const, value: 0 }, affected_resources: [] };
+            return {
+              status: "success" as const,
+              evidence: { type: "exit_code" as const, value: 0 },
+              affected_resources: [],
+            };
           },
         },
       },
@@ -448,12 +464,18 @@ describe("RuntimeTaskCoordinator", () => {
     // Two independent steps with no depends_on between them; an llmPlanner
     // (rather than the deterministic single-goal map) is the simplest way to
     // hand the coordinator a genuine two-step, no-dependency plan directly.
-    const parallelPlanner = new Planner({ deterministic: new Map(), llmPlanner: async () => [stepA, stepB] });
+    const parallelPlanner = new Planner({
+      deterministic: new Map(),
+      llmPlanner: async () => [stepA, stepB],
+    });
     const parallelCoordinator = new RuntimeTaskCoordinator({
       tasks,
       planner: parallelPlanner,
       executor: new Executor(
-        new PermissionManager({ allowedToolIds: new Set([toolA.tool_id, toolB.tool_id]), confirmationTimeoutMs: 30_000 }),
+        new PermissionManager({
+          allowedToolIds: new Set([toolA.tool_id, toolB.tool_id]),
+          confirmationTimeoutMs: 30_000,
+        }),
         new Map([
           [toolA.tool_id, toolA],
           [toolB.tool_id, toolB],

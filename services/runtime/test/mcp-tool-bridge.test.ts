@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { describe, expect, it } from "vitest";
 
 import { McpConnectionManager } from "../src/mcp-connection-manager.js";
@@ -32,14 +33,24 @@ describe("MCP transport end-to-end: a connected server's tool becomes a real, ex
 
     const registration = createMcpToolRegistration(
       "weather-server",
-      [{ server_id: "weather-server", tool_name: "get_weather", risk_tier: "read_only", idempotent: true }],
+      [
+        {
+          server_id: "weather-server",
+          tool_name: "get_weather",
+          risk_tier: "read_only",
+          idempotent: true,
+        },
+      ],
       connections,
     );
     expect(registration.ok).toBe(true);
     if (!registration.ok) return;
 
     const executor = new Executor(
-      new PermissionManager({ allowedToolIds: new Set(["weather-server"]), confirmationTimeoutMs: 0 }),
+      new PermissionManager({
+        allowedToolIds: new Set(["weather-server"]),
+        confirmationTimeoutMs: 0,
+      }),
       new Map([["weather-server", registration.value]]),
     );
     const verifier = new Verifier();
@@ -83,13 +94,23 @@ describe("MCP transport end-to-end: a connected server's tool becomes a real, ex
     });
     const registration = createMcpToolRegistration(
       "flaky-server",
-      [{ server_id: "flaky-server", tool_name: "do_thing", risk_tier: "read_only", idempotent: true }],
+      [
+        {
+          server_id: "flaky-server",
+          tool_name: "do_thing",
+          risk_tier: "read_only",
+          idempotent: true,
+        },
+      ],
       connections,
     );
     if (!registration.ok) throw new Error("registration failed");
 
     const executor = new Executor(
-      new PermissionManager({ allowedToolIds: new Set(["flaky-server"]), confirmationTimeoutMs: 0 }),
+      new PermissionManager({
+        allowedToolIds: new Set(["flaky-server"]),
+        confirmationTimeoutMs: 0,
+      }),
       new Map([["flaky-server", registration.value]]),
     );
     const step = {
@@ -115,7 +136,14 @@ describe("MCP transport end-to-end: a connected server's tool becomes a real, ex
     const connections = new McpConnectionManager();
     const registration = createMcpToolRegistration(
       "never-connected",
-      [{ server_id: "never-connected", tool_name: "do_thing", risk_tier: "read_only", idempotent: true }],
+      [
+        {
+          server_id: "never-connected",
+          tool_name: "do_thing",
+          risk_tier: "read_only",
+          idempotent: true,
+        },
+      ],
       connections,
     );
     if (!registration.ok) throw new Error("registration failed");
@@ -128,9 +156,7 @@ describe("MCP transport end-to-end: a connected server's tool becomes a real, ex
 
 describe("McpConnectionManager", () => {
   it("does not open a second connection when one is already open for the same server", async () => {
-    let spawnCount = 0;
     const fetcher = (async () => {
-      spawnCount += 1;
       return { ok: true, status: 200, json: async () => ({ jsonrpc: "2.0", id: 1, result: {} }) };
     }) as unknown as typeof fetch;
     const connections = new McpConnectionManager({ fetcher });

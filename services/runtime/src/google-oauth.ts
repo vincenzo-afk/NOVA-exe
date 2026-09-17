@@ -174,7 +174,9 @@ export class GoogleTokenManager implements GoogleAccessTokenSource {
   public async getAccessToken(): Promise<string> {
     const stored = this.options.loadTokens();
     if (!stored) {
-      throw new Error("No Google account is connected. Complete sign-in before using this feature.");
+      throw new Error(
+        "No Google account is connected. Complete sign-in before using this feature.",
+      );
     }
     if (Date.now() < stored.expires_at - this.refreshSkewMs) {
       return stored.access_token;

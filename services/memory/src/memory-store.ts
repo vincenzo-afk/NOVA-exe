@@ -254,8 +254,7 @@ export class MemoryStore {
         )
         .filter(
           (record) =>
-            entityType === undefined ||
-            record.content_ref.toLocaleLowerCase().includes(entityType),
+            entityType === undefined || record.content_ref.toLocaleLowerCase().includes(entityType),
         )
         .filter((record) => {
           const createdAt = Date.parse(record.created_at);

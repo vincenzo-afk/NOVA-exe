@@ -7,7 +7,9 @@ import { FileSpanStore, Tracer } from "../src/tracer.js";
 const temporaryDirectories: string[] = [];
 
 afterEach(async () => {
-  await Promise.all(temporaryDirectories.splice(0).map((directory) => rm(directory, { recursive: true })));
+  await Promise.all(
+    temporaryDirectories.splice(0).map((directory) => rm(directory, { recursive: true })),
+  );
 });
 
 describe("Tracer", () => {
@@ -26,7 +28,9 @@ describe("Tracer", () => {
       "2026-08-24T10:00:01.000Z",
       "2026-08-24T10:00:02.000Z",
     ];
-    const tracer = new Tracer({ now: () => timestamps[tick++] ?? timestamps[timestamps.length - 1] });
+    const tracer = new Tracer({
+      now: () => timestamps[tick++] ?? timestamps[timestamps.length - 1],
+    });
 
     const taskSpan = tracer.startSpan("nova.task", "corr-1", {
       task_id: "task-1",
@@ -54,8 +58,14 @@ describe("Tracer", () => {
 
   it("scopes queries to their own correlation ID", () => {
     const tracer = new Tracer({ now: () => "2026-08-24T10:00:00.000Z" });
-    tracer.startSpan("nova.bus.publish", "corr-a", { topic: "task.created", schema_version: "1.0.0" });
-    tracer.startSpan("nova.bus.publish", "corr-b", { topic: "task.created", schema_version: "1.0.0" });
+    tracer.startSpan("nova.bus.publish", "corr-a", {
+      topic: "task.created",
+      schema_version: "1.0.0",
+    });
+    tracer.startSpan("nova.bus.publish", "corr-b", {
+      topic: "task.created",
+      schema_version: "1.0.0",
+    });
 
     expect(tracer.query("corr-a")).toHaveLength(1);
     expect(tracer.query("corr-b")).toHaveLength(1);

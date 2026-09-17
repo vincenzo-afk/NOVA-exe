@@ -44,8 +44,11 @@ export function openProviderCredentialSettings(filePath: string): ProviderCreden
     },
     clear(providerId) {
       const entries = load();
-      delete entries[providerId];
-      persist(entries);
+      if (Object.hasOwn(entries, providerId)) {
+        const next = { ...entries };
+        Reflect.deleteProperty(next, providerId);
+        persist(next);
+      }
     },
   };
 }

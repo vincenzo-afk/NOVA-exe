@@ -39,7 +39,7 @@ detailed design lives.
 | 3 | Physical-world spatial perception (camera) | No physical-space model exists; desktop `world-model.md`'s "spatial" is deliberately scoped to windows only | `docs/20-devices/spatial-perception.md` |
 | 4 | Heartbeat monitoring / crash auto-recovery | Already stronger than the field — `TaskCheckpointStore.recoverAfterCrash()` re-validates rather than blindly resuming | (existing: `docs/03-runtime/task-persistence.md`) |
 | 4b | Session fork/rewind/branching | Missing as a user-facing feature; checkpoint data already exists | `docs/17-workflow/session-fork-rewind.md` |
-| 5 | Multi-agent delegation / specialist bot teams | Designed at the doc level; implementation status needed verification | `docs/24-collaboration/subagent-orchestration.md` |
+| 5 | Multi-agent delegation / specialist bot teams | Designed at the doc level; implementation status needed verification | `docs/24-collaboration/specialist-delegation.md` |
 | 6 | Diverse sandboxed execution backends | Documented CLI surface (`nova sandbox`) with no backing module | `docs/16-extensibility/execution-backends.md` |
 | 7 | Pinned multi-agent live dashboard | Task Monitor exists; pinned multi-tile "mission control" view does not | `docs/40-screens/mission-control-dashboard.md` |
 | 8 | Authenticated-session web automation | Mechanism likely already exists via the browser extension; audit trail needed to be an honest advantage rather than Manus's own flagged weakness | `docs/06-tools/authenticated-session-audit.md` |

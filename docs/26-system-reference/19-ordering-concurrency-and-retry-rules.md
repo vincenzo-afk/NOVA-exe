@@ -57,7 +57,7 @@ lock (see Concurrency Rules).
 Two genuinely distinct windowing concepts are referenced vaguely as "a
 short window" across multiple documents
 (`docs/02-architecture/event-driven-architecture.md`,
-`docs/03-runtime/state-manager.md`, `docs/37-edge-cases/
+docs/03-runtime/state-manager.md and docs/37-edge-cases/
 duplicate-events.md`, and others) without a pinned duration anywhere.
 Per this file's own stated purpose — an implementer should never have
 to invent a number this document was supposed to supply — both are

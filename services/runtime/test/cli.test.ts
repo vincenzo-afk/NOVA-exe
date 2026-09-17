@@ -178,7 +178,10 @@ describe("NovaCli provider test / prompt validate", () => {
 
     expect(await cli.run(["prompt", "validate", "onboarding-intro", "--json"])).toMatchObject({
       ok: true,
-      value: { command: "prompt", data: { valid: false, issues: ["missing {{variable}} binding"] } },
+      value: {
+        command: "prompt",
+        data: { valid: false, issues: ["missing {{variable}} binding"] },
+      },
     });
   });
 

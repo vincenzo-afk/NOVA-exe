@@ -1,6 +1,10 @@
 import { createHash, createSign, createVerify, type KeyLike } from "node:crypto";
 import { err, ok, type Result } from "@nova/shared";
-import { PLUGIN_PERMISSION_SCOPES, type PluginManifest, type PluginPermissionScope } from "./plugin-manager.js";
+import {
+  PLUGIN_PERMISSION_SCOPES,
+  type PluginManifest,
+  type PluginPermissionScope,
+} from "./plugin-manager.js";
 import { createTarGz, type ArchiveEntry } from "./archive.js";
 
 /**
@@ -95,7 +99,8 @@ export interface PluginValidationIssue {
  */
 export function validatePluginManifest(manifest: unknown): Result<PluginManifest> {
   const issues: PluginValidationIssue[] = [];
-  const record = typeof manifest === "object" && manifest !== null ? (manifest as Record<string, unknown>) : {};
+  const record =
+    typeof manifest === "object" && manifest !== null ? (manifest as Record<string, unknown>) : {};
 
   if (typeof record.plugin_id !== "string" || !/^[a-z0-9][a-z0-9-]{1,63}$/.test(record.plugin_id)) {
     issues.push({ field: "plugin_id", message: "Must be lowercase alphanumeric with hyphens." });
@@ -103,7 +108,10 @@ export function validatePluginManifest(manifest: unknown): Result<PluginManifest
   if (typeof record.version !== "string" || !/^\d+\.\d+\.\d+/.test(record.version)) {
     issues.push({ field: "version", message: "Must be a semver string." });
   }
-  if (typeof record.nova_api_version_range !== "string" || record.nova_api_version_range.length === 0) {
+  if (
+    typeof record.nova_api_version_range !== "string" ||
+    record.nova_api_version_range.length === 0
+  ) {
     issues.push({ field: "nova_api_version_range", message: "Required." });
   }
   if (typeof record.display_name !== "string" || record.display_name.length === 0) {
@@ -159,7 +167,11 @@ export function signPluginChecksum(checksum: string, privateKey: KeyLike): strin
   return signer.sign(privateKey, "base64");
 }
 
-export function verifyPluginSignature(checksum: string, signatureBase64: string, publicKey: KeyLike): boolean {
+export function verifyPluginSignature(
+  checksum: string,
+  signatureBase64: string,
+  publicKey: KeyLike,
+): boolean {
   const verifier = createVerify("RSA-SHA256");
   verifier.update(checksum);
   verifier.end();
@@ -194,7 +206,10 @@ export function packagePlugin(
   if (!validated.ok) return validated;
 
   const entries: ArchiveEntry[] = [
-    { path: "manifest.json", content: Buffer.from(`${JSON.stringify(validated.value, null, 2)}\n`, "utf8") },
+    {
+      path: "manifest.json",
+      content: Buffer.from(`${JSON.stringify(validated.value, null, 2)}\n`, "utf8"),
+    },
     ...sourceFiles,
   ];
   const archive = createTarGz(entries);

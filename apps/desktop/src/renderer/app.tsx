@@ -286,9 +286,7 @@ export const App = () => {
       const result = await window.nova.syncObservers();
       setObserverSyncStatus(`Windows/applications observer: ${result.windows}.`);
     } catch (error: unknown) {
-      setObserverSyncStatus(
-        error instanceof Error ? error.message : "Observer sync failed.",
-      );
+      setObserverSyncStatus(error instanceof Error ? error.message : "Observer sync failed.");
     } finally {
       setObserverSyncPending(false);
     }
@@ -705,8 +703,15 @@ const PermissionCenter = ({
           </>
         ) : (
           <>
-            <p>Connect a Google account to let NOVA read email, send drafts you approve, and manage calendar events.</p>
-            <button disabled={googleConnectPending} onClick={() => void onConnectGoogle()} type="button">
+            <p>
+              Connect a Google account to let NOVA read email, send drafts you approve, and manage
+              calendar events.
+            </p>
+            <button
+              disabled={googleConnectPending}
+              onClick={() => void onConnectGoogle()}
+              type="button"
+            >
               {googleConnectPending ? "Connecting…" : "Connect Google account"}
             </button>
           </>

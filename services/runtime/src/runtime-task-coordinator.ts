@@ -313,14 +313,21 @@ export class RuntimeTaskCoordinator {
         if (verifierError) return this.fail(taskId, verifierError.errorInfo);
 
         for (const outcome of settled) {
-          const entry = outcome.kind === "entry" ? outcome.entry : outcome.kind === "step_failure" ? outcome.entry : undefined;
+          const entry =
+            outcome.kind === "entry"
+              ? outcome.entry
+              : outcome.kind === "step_failure"
+                ? outcome.entry
+                : undefined;
           if (entry) {
             auditLog.push(entry);
             finalAttemptVerdicts.push(entry);
           }
         }
 
-        const failure = settled.find((outcome): outcome is StepFailureOutcome => outcome.kind === "step_failure");
+        const failure = settled.find(
+          (outcome): outcome is StepFailureOutcome => outcome.kind === "step_failure",
+        );
         if (failure) {
           stepFailure = { step: failure.step, reason: failure.reason };
           break groupLoop;

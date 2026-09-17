@@ -93,7 +93,10 @@ describe("StateManager", () => {
       entityRef: "file:/workspace/report.txt",
       allowActiveRecheck: true,
     });
-    expect(rechecked).toMatchObject({ ok: true, value: { confidence: 1, contradictionPending: false } });
+    expect(rechecked).toMatchObject({
+      ok: true,
+      value: { confidence: 1, contradictionPending: false },
+    });
 
     // A second query, even without permission to recheck again, should
     // see the persisted recheck result and not resurrect the old

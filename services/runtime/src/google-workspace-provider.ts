@@ -1,5 +1,11 @@
 import type { CalendarDraft, CalendarEvent, CalendarProvider } from "./calendar-assistant.js";
-import type { EmailDraft, EmailMessage, EmailQuery, EmailProvider, EmailSendReceipt } from "./email-assistant.js";
+import type {
+  EmailDraft,
+  EmailMessage,
+  EmailQuery,
+  EmailProvider,
+  EmailSendReceipt,
+} from "./email-assistant.js";
 
 /**
  * Real, network-calling `EmailProvider`/`CalendarProvider` implementations
@@ -113,7 +119,9 @@ function buildGmailSearchQuery(query: EmailQuery): string {
   return clauses.join(" ");
 }
 
-function toEpochMillis(value: { readonly dateTime?: string; readonly date?: string } | undefined): number {
+function toEpochMillis(
+  value: { readonly dateTime?: string; readonly date?: string } | undefined,
+): number {
   if (!value) return 0;
   if (value.dateTime) return new Date(value.dateTime).getTime();
   if (value.date) return new Date(`${value.date}T00:00:00Z`).getTime();
@@ -228,36 +236,44 @@ export class GmailProvider implements EmailProvider {
     // fixed multiple of one message's size regardless of how large
     // `ids` grows, with no change to the final result, its ordering, or
     // total requests made.
-    return await fetchWithBoundedConcurrency(ids, GMAIL_DETAIL_FETCH_CONCURRENCY, async ({ id }) => {
-      const detailUrl = new URL(`${this.endpoint}/users/me/messages/${id}`);
-      detailUrl.searchParams.set("format", format);
-      if (format === "metadata") {
-        detailUrl.searchParams.append("metadataHeaders", "From");
-        detailUrl.searchParams.append("metadataHeaders", "Subject");
-      }
-      const detailResponse = await this.fetcher(detailUrl, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!detailResponse.ok) {
-        throw new Error(`Gmail message fetch failed with status ${detailResponse.status}.`);
-      }
-      const resource = (await detailResponse.json()) as GmailMessageResource;
-      const message: EmailMessage = {
-        id: resource.id,
-        sender: header(resource.payload?.headers, "From"),
-        subject: header(resource.payload?.headers, "Subject"),
-        body: format === "full" ? extractPlainTextBody(resource.payload) : "",
-        attachments: [],
-      };
-      return message;
-    });
+    return await fetchWithBoundedConcurrency(
+      ids,
+      GMAIL_DETAIL_FETCH_CONCURRENCY,
+      async ({ id }) => {
+        const detailUrl = new URL(`${this.endpoint}/users/me/messages/${id}`);
+        detailUrl.searchParams.set("format", format);
+        if (format === "metadata") {
+          detailUrl.searchParams.append("metadataHeaders", "From");
+          detailUrl.searchParams.append("metadataHeaders", "Subject");
+        }
+        const detailResponse = await this.fetcher(detailUrl, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!detailResponse.ok) {
+          throw new Error(`Gmail message fetch failed with status ${detailResponse.status}.`);
+        }
+        const resource = (await detailResponse.json()) as GmailMessageResource;
+        const message: EmailMessage = {
+          id: resource.id,
+          sender: header(resource.payload?.headers, "From"),
+          subject: header(resource.payload?.headers, "Subject"),
+          body: format === "full" ? extractPlainTextBody(resource.payload) : "",
+          attachments: [],
+        };
+        return message;
+      },
+    );
   }
 
   public async send(draft: EmailDraft): Promise<EmailSendReceipt> {
     const token = await this.options.tokenSource.getAccessToken();
-    const rfc822 = [`To: ${draft.to}`, `Subject: ${draft.subject}`, "Content-Type: text/plain; charset=utf-8", "", draft.body].join(
-      "\r\n",
-    );
+    const rfc822 = [
+      `To: ${draft.to}`,
+      `Subject: ${draft.subject}`,
+      "Content-Type: text/plain; charset=utf-8",
+      "",
+      draft.body,
+    ].join("\r\n");
     const response = await this.fetcher(`${this.endpoint}/users/me/messages/send`, {
       method: "POST",
       headers: {

@@ -49,11 +49,15 @@ function startLoopbackServer(
     const state = url.searchParams.get("state");
     response.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
     if (error || !code || !state) {
-      response.end("<html><body>Sign-in was not completed. You can close this window.</body></html>");
+      response.end(
+        "<html><body>Sign-in was not completed. You can close this window.</body></html>",
+      );
       onError(error ?? "Google did not return an authorization code.");
       return;
     }
-    response.end("<html><body>Sign-in complete — you can close this window and return to NOVA.</body></html>");
+    response.end(
+      "<html><body>Sign-in complete — you can close this window and return to NOVA.</body></html>",
+    );
     onCode(code, state);
   });
   const portPromise = new Promise<number>((resolve, reject) => {
@@ -93,9 +97,12 @@ export async function runGoogleConsentFlow(
         void (async () => {
           try {
             if (state !== expectedState) {
-              throw new Error("OAuth state mismatch — the redirect did not match this sign-in attempt.");
+              throw new Error(
+                "OAuth state mismatch — the redirect did not match this sign-in attempt.",
+              );
             }
-            if (!client) throw new Error("OAuth client was not initialized before the redirect arrived.");
+            if (!client)
+              throw new Error("OAuth client was not initialized before the redirect arrived.");
             const tokens = await client.exchangeCodeForTokens(code, pkce.verifier);
             finish(() => resolve({ tokens }));
           } catch (cause) {

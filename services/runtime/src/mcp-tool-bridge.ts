@@ -58,7 +58,10 @@ export function createMcpToolAction(
       if (!rawResponse.ok) {
         return {
           status: "failure",
-          evidence: { type: "api_response", value: { status: 0, error: rawResponse.error.message } },
+          evidence: {
+            type: "api_response",
+            value: { status: 0, error: rawResponse.error.message },
+          },
           affected_resources: [],
         };
       }
@@ -78,6 +81,8 @@ export function createMcpToolAction(
       }
 
       const { tool_id: _toolId, action_id: _actionId, ...result } = parsed.value;
+      void _toolId;
+      void _actionId;
       return result;
     },
   };
@@ -92,7 +97,8 @@ export function createMcpToolRegistration(
   if (tools.some((tool) => tool.server_id !== serverId)) {
     return err({
       code: "NOVA-TL002",
-      message: "Every tool descriptor passed to createMcpToolRegistration must belong to the same server_id.",
+      message:
+        "Every tool descriptor passed to createMcpToolRegistration must belong to the same server_id.",
       retryable: false,
     });
   }

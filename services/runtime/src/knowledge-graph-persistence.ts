@@ -1,8 +1,13 @@
 import type { PrismaClient } from "@nova/memory";
 import type { StructuredLogger } from "@nova/shared";
-import { ok, type Result } from "@nova/shared";
+import { type Result } from "@nova/shared";
 
-import { KnowledgeGraph, type GraphEdge, type GraphNode, type GraphNodeType } from "./knowledge-graph.js";
+import {
+  KnowledgeGraph,
+  type GraphEdge,
+  type GraphNode,
+  type GraphNodeType,
+} from "./knowledge-graph.js";
 
 /**
  * The follow-up the schema's own comment named and never got: `graph_nodes`/
@@ -49,7 +54,9 @@ export class PersistentKnowledgeGraph extends KnowledgeGraph {
     super();
   }
 
-  public static async hydrate(options: PersistentKnowledgeGraphOptions): Promise<PersistentKnowledgeGraph> {
+  public static async hydrate(
+    options: PersistentKnowledgeGraphOptions,
+  ): Promise<PersistentKnowledgeGraph> {
     const graph = new PersistentKnowledgeGraph(options);
     const [nodeRows, edgeRows] = await Promise.all([
       options.prisma.graphNode.findMany({ where: { workspaceId: options.workspaceId } }),

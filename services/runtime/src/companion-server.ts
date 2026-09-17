@@ -1,7 +1,11 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 
-import { CompanionCommandBridge, type CompanionCommandResult } from "./companion-command-bridge.js";
-import type { CompanionPairingCoordinator, CompanionSessionStore } from "./companion-pairing-session.js";
+import type { CompanionCommandBridge } from "./companion-command-bridge.js";
+import { type CompanionCommandResult } from "./companion-command-bridge.js";
+import type {
+  CompanionPairingCoordinator,
+  CompanionSessionStore,
+} from "./companion-pairing-session.js";
 import type { CompanionTokenIssuer } from "./companion-pairing-session.js";
 import { createCompanionSyncTransport, type CompanionSyncBroker } from "./companion-sync-store.js";
 import type { PairingRequest } from "./device-pairing.js";
@@ -80,7 +84,9 @@ export class CompanionServer {
 
     try {
       if (request.method === "POST" && url.pathname === "/v1/companion/pair/offer") {
-        const body = (await this.readJsonBody(request)) as { runtime_mode?: "Full peer" | "Companion" };
+        const body = (await this.readJsonBody(request)) as {
+          runtime_mode?: "Full peer" | "Companion";
+        };
         const runtimeMode = body.runtime_mode === "Full peer" ? "Full peer" : "Companion";
         const offer = this.options.pairing.createOffer(runtimeMode);
         this.send(response, offer.ok ? 200 : 400, offer.ok ? offer.value : { error: offer.error });
@@ -88,20 +94,46 @@ export class CompanionServer {
       }
 
       if (request.method === "POST" && url.pathname === "/v1/companion/pair/sign-challenge") {
-        const body = (await this.readJsonBody(request)) as { code?: string; channel_token?: string; challenge_b64?: string };
-        if (typeof body.code !== "string" || typeof body.channel_token !== "string" || typeof body.challenge_b64 !== "string") {
-          this.send(response, 400, { error: { code: "NOVA-TL003", message: "code, channel_token, and challenge_b64 are required." } });
+        const body = (await this.readJsonBody(request)) as {
+          code?: string;
+          channel_token?: string;
+          challenge_b64?: string;
+        };
+        if (
+          typeof body.code !== "string" ||
+          typeof body.channel_token !== "string" ||
+          typeof body.challenge_b64 !== "string"
+        ) {
+          this.send(response, 400, {
+            error: {
+              code: "NOVA-TL003",
+              message: "code, channel_token, and challenge_b64 are required.",
+            },
+          });
           return;
         }
-        const result = this.options.pairing.signChallenge(body.code, body.channel_token, body.challenge_b64);
-        this.send(response, result.ok ? 200 : 401, result.ok ? { signature_b64: result.value } : { error: result.error });
+        const result = this.options.pairing.signChallenge(
+          body.code,
+          body.channel_token,
+          body.challenge_b64,
+        );
+        this.send(
+          response,
+          result.ok ? 200 : 401,
+          result.ok ? { signature_b64: result.value } : { error: result.error },
+        );
         return;
       }
 
       if (request.method === "POST" && url.pathname === "/v1/companion/pair/complete") {
-        const body = (await this.readJsonBody(request)) as { code?: string; request?: PairingRequest };
+        const body = (await this.readJsonBody(request)) as {
+          code?: string;
+          request?: PairingRequest;
+        };
         if (typeof body.code !== "string" || !body.request) {
-          this.send(response, 400, { error: { code: "NOVA-TL003", message: "code and request are required." } });
+          this.send(response, 400, {
+            error: { code: "NOVA-TL003", message: "code and request are required." },
+          });
           return;
         }
         const result = this.options.pairing.completePairing(body.code, body.request);
@@ -116,7 +148,9 @@ export class CompanionServer {
       // Every route below requires an authenticated, paired device.
       const deviceId = this.authenticate(request);
       if (!deviceId) {
-        this.send(response, 401, { error: { code: "NOVA-SEC001", message: "A valid companion bearer token is required." } });
+        this.send(response, 401, {
+          error: { code: "NOVA-SEC001", message: "A valid companion bearer token is required." },
+        });
         return;
       }
 
@@ -125,18 +159,28 @@ export class CompanionServer {
         const manager = this.syncManagerFor(deviceId);
         void manager; // The manager instance is retained for the device's own local-record projection; the raw pull below is what the wire protocol actually needs.
         const result = this.options.syncBroker.pull(deviceId, body.since_logical_clock ?? 0);
-        this.send(response, result.ok ? 200 : 400, result.ok ? result.value : { error: result.error });
+        this.send(
+          response,
+          result.ok ? 200 : 400,
+          result.ok ? result.value : { error: result.error },
+        );
         return;
       }
 
       if (request.method === "POST" && url.pathname === "/v1/companion/sync/push") {
         const body = (await this.readJsonBody(request)) as { envelopes?: unknown };
         if (!Array.isArray(body.envelopes)) {
-          this.send(response, 400, { error: { code: "NOVA-TL003", message: "envelopes must be an array." } });
+          this.send(response, 400, {
+            error: { code: "NOVA-TL003", message: "envelopes must be an array." },
+          });
           return;
         }
         const result = this.options.syncBroker.push(deviceId, body.envelopes);
-        this.send(response, result.ok ? 200 : 400, result.ok ? result.value : { error: result.error });
+        this.send(
+          response,
+          result.ok ? 200 : 400,
+          result.ok ? result.value : { error: result.error },
+        );
         return;
       }
 
@@ -152,11 +196,17 @@ export class CompanionServer {
           result?: CompanionCommandResult;
         };
         if (typeof body.command_id !== "string" || !body.result) {
-          this.send(response, 400, { error: { code: "NOVA-TL003", message: "command_id and result are required." } });
+          this.send(response, 400, {
+            error: { code: "NOVA-TL003", message: "command_id and result are required." },
+          });
           return;
         }
         const result = this.options.commands.submitResult(body.command_id, body.result);
-        this.send(response, result.ok ? 200 : 404, result.ok ? { accepted: true } : { error: result.error });
+        this.send(
+          response,
+          result.ok ? 200 : 404,
+          result.ok ? { accepted: true } : { error: result.error },
+        );
         return;
       }
 
@@ -167,7 +217,9 @@ export class CompanionServer {
           hint?: string;
         };
         if (typeof body.frame_b64 !== "string") {
-          this.send(response, 400, { error: { code: "NOVA-TL003", message: "frame_b64 is required." } });
+          this.send(response, 400, {
+            error: { code: "NOVA-TL003", message: "frame_b64 is required." },
+          });
           return;
         }
         const result = await this.options.vision.processFrame({
@@ -176,14 +228,23 @@ export class CompanionServer {
           captured_at_epoch_ms: body.captured_at_epoch_ms ?? Date.now(),
           ...(typeof body.hint === "string" ? { hint: body.hint } : {}),
         });
-        this.send(response, result.ok ? 200 : 400, result.ok ? { objects: result.value } : { error: result.error });
+        this.send(
+          response,
+          result.ok ? 200 : 400,
+          result.ok ? { objects: result.value } : { error: result.error },
+        );
         return;
       }
 
-      this.send(response, 404, { error: { code: "NOVA-TL003", message: "Unknown companion route." } });
+      this.send(response, 404, {
+        error: { code: "NOVA-TL003", message: "Unknown companion route." },
+      });
     } catch (error) {
       this.send(response, 400, {
-        error: { code: "NOVA-TL003", message: error instanceof Error ? error.message : "Malformed request body." },
+        error: {
+          code: "NOVA-TL003",
+          message: error instanceof Error ? error.message : "Malformed request body.",
+        },
       });
     }
   }
@@ -201,8 +262,14 @@ export class CompanionServer {
     if (existing) return existing;
     const session = this.options.sessions.get(deviceId);
     if (!session) throw new Error("No active session for this device.");
-    const transport = createCompanionSyncTransport(this.options.syncBroker, deviceId, session.sessionKey);
-    const manager = new CrossDeviceSyncManager(transport, { granted_partitions: session.grantedPartitions });
+    const transport = createCompanionSyncTransport(
+      this.options.syncBroker,
+      deviceId,
+      session.sessionKey,
+    );
+    const manager = new CrossDeviceSyncManager(transport, {
+      granted_partitions: session.grantedPartitions,
+    });
     this.syncManagersByDevice.set(deviceId, manager);
     return manager;
   }

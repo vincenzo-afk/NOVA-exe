@@ -54,9 +54,13 @@ export interface CliOptions {
   readonly report?: () => Promise<Readonly<Record<string, unknown>>>;
   readonly verify?: () => Promise<Readonly<{ passed: boolean; failures: readonly string[] }>>;
   /** `nova provider test <name>` — live conformance test (docs/27-cli/06). */
-  readonly providerTest?: (name: string) => Promise<Readonly<{ passed: boolean; details?: string }>>;
+  readonly providerTest?: (
+    name: string,
+  ) => Promise<Readonly<{ passed: boolean; details?: string }>>;
   /** `nova prompt validate <name>` — schema/render check (docs/27-cli/06, docs/05-ai/prompt-versioning.md). */
-  readonly promptValidate?: (name: string) => Promise<Readonly<{ valid: boolean; issues: readonly string[] }>>;
+  readonly promptValidate?: (
+    name: string,
+  ) => Promise<Readonly<{ valid: boolean; issues: readonly string[] }>>;
 }
 
 export interface CliResponse {
@@ -142,9 +146,7 @@ export class NovaCli {
         return this.ok(command, { ...data, json_requested: json });
       }
       case "diagnostics": {
-        const bundle = this.options.diagnostics
-          ? await this.options.diagnostics()
-          : { files: [] };
+        const bundle = this.options.diagnostics ? await this.options.diagnostics() : { files: [] };
         return this.ok(command, { ...bundle, json_requested: json });
       }
       case "upgrade": {
@@ -193,7 +195,10 @@ export class NovaCli {
             ? argv[setFlagIndex + 1]
             : undefined;
         const set = setArg
-          ? { key: setArg.slice(0, setArg.indexOf("=")), value: setArg.slice(setArg.indexOf("=") + 1) }
+          ? {
+              key: setArg.slice(0, setArg.indexOf("=")),
+              value: setArg.slice(setArg.indexOf("=") + 1),
+            }
           : undefined;
         const resolved = this.options.config ? await this.options.config(set) : {};
         return this.ok(command, { resolved, json_requested: json });
@@ -316,8 +321,7 @@ export class NovaCli {
         return this.ok(command, { action: "create", name, ...result, json_requested: json });
       }
       case "provider": {
-        if (args[0] !== "test")
-          return err(this.error("nova provider currently supports: test."));
+        if (args[0] !== "test") return err(this.error("nova provider currently supports: test."));
         const name = args[1];
         if (!name) return err(this.error("nova provider test requires a <name> argument."));
         const result = this.options.providerTest

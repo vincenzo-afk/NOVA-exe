@@ -244,12 +244,15 @@ describe("Verifier", () => {
   it("returns verified only when evidence confirms the result", () => {
     const verifier = new Verifier();
 
-    const result = verifier.verify(step({ parameters: { path: "/workspace/report.txt", expected_file_hash: "hash-123" } }), {
-      step_id: "step-1",
-      status: "success",
-      evidence: { type: "file_hash", value: "hash-123" },
-      affected_resources: ["/workspace/report.txt"],
-    });
+    const result = verifier.verify(
+      step({ parameters: { path: "/workspace/report.txt", expected_file_hash: "hash-123" } }),
+      {
+        step_id: "step-1",
+        status: "success",
+        evidence: { type: "file_hash", value: "hash-123" },
+        affected_resources: ["/workspace/report.txt"],
+      },
+    );
 
     expect(result).toEqual({
       ok: true,

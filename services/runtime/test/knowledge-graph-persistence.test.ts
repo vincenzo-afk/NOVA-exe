@@ -35,7 +35,15 @@ function createFakePrisma() {
     graphNode: {
       findMany: async ({ where }: { where: { workspaceId: string } }) =>
         [...nodes.values()].filter((row) => row.workspaceId === where.workspaceId),
-      upsert: async ({ where, create, update }: { where: { id: string }; create: FakeGraphNodeRow; update: Partial<FakeGraphNodeRow> }) => {
+      upsert: async ({
+        where,
+        create,
+        update,
+      }: {
+        where: { id: string };
+        create: FakeGraphNodeRow;
+        update: Partial<FakeGraphNodeRow>;
+      }) => {
         const existing = nodes.get(where.id);
         const row = existing ? { ...existing, ...update } : create;
         nodes.set(where.id, row);
@@ -45,7 +53,15 @@ function createFakePrisma() {
     graphEdge: {
       findMany: async ({ where }: { where: { workspaceId: string } }) =>
         [...edges.values()].filter((row) => row.workspaceId === where.workspaceId),
-      upsert: async ({ where, create, update }: { where: { id: string }; create: FakeGraphEdgeRow; update: Partial<FakeGraphEdgeRow> }) => {
+      upsert: async ({
+        where,
+        create,
+        update,
+      }: {
+        where: { id: string };
+        create: FakeGraphEdgeRow;
+        update: Partial<FakeGraphEdgeRow>;
+      }) => {
         const existing = edges.get(where.id);
         const row = existing ? { ...existing, ...update } : create;
         edges.set(where.id, row);
@@ -124,7 +140,10 @@ describe("PersistentKnowledgeGraph", () => {
     graph.markInactive("n1");
     await flushBackgroundWrites();
 
-    expect(prisma.nodes.get("n1")).toMatchObject({ active: false, aliasesJson: JSON.stringify(["the project"]) });
+    expect(prisma.nodes.get("n1")).toMatchObject({
+      active: false,
+      aliasesJson: JSON.stringify(["the project"]),
+    });
   });
 
   it("persists an edge and both its endpoint nodes are queryable after rehydration", async () => {
@@ -136,7 +155,13 @@ describe("PersistentKnowledgeGraph", () => {
     });
     graph.addNode(node({ id: "a", type: "Project", name: "A" }));
     graph.addNode(node({ id: "b", type: "Task", name: "B" }));
-    const edgeResult = graph.addEdge({ id: "e1", type: "involves", from_node_id: "a", to_node_id: "b", weight: 1 });
+    const edgeResult = graph.addEdge({
+      id: "e1",
+      type: "involves",
+      from_node_id: "a",
+      to_node_id: "b",
+      weight: 1,
+    });
     expect(edgeResult.ok).toBe(true);
     await flushBackgroundWrites();
 
@@ -146,6 +171,9 @@ describe("PersistentKnowledgeGraph", () => {
       identityId: "id1",
     });
     const queried = rehydrated.query({ node_id: "a", direction: "out", depth: 1 });
-    expect(queried).toMatchObject({ ok: true, value: { edges: [{ id: "e1" }], nodes: [{ id: "b" }] } });
+    expect(queried).toMatchObject({
+      ok: true,
+      value: { edges: [{ id: "e1" }], nodes: [{ id: "b" }] },
+    });
   });
 });

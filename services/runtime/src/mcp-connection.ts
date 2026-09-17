@@ -39,7 +39,10 @@ import type { McpTransportPlan } from "./mcp-transport-planner.js";
  */
 export interface SpawnedMcpProcess {
   readonly stdin: { write(data: string): boolean };
-  readonly stdout: { setEncoding(encoding: string): void; on(event: "data", listener: (chunk: string) => void): void };
+  readonly stdout: {
+    setEncoding(encoding: string): void;
+    on(event: "data", listener: (chunk: string) => void): void;
+  };
   readonly killed: boolean;
   on(event: "exit", listener: (code: number | null) => void): void;
   on(event: "error", listener: (error: Error) => void): void;
@@ -128,31 +131,48 @@ export class McpConnection {
       : this.requestOverHttp(payload);
   }
 
-  private async requestOverStdio(payload: Readonly<Record<string, unknown>>): Promise<Result<unknown>> {
+  private async requestOverStdio(
+    payload: Readonly<Record<string, unknown>>,
+  ): Promise<Result<unknown>> {
     if (!this.process) {
       const connected = await this.connect();
       if (!connected.ok) return connected;
     }
     const child = this.process;
     if (!child) {
-      return err({ code: "NOVA-NET001", message: "MCP stdio process is not running.", retryable: true });
+      return err({
+        code: "NOVA-NET001",
+        message: "MCP stdio process is not running.",
+        retryable: true,
+      });
     }
 
     const id = payload["id"];
     if (typeof id !== "string" && typeof id !== "number") {
-      return err({ code: "NOVA-TL002", message: "MCP request payload is missing a correlatable 'id'.", retryable: false });
+      return err({
+        code: "NOVA-TL002",
+        message: "MCP request payload is missing a correlatable 'id'.",
+        retryable: false,
+      });
     }
 
     return new Promise<Result<unknown>>((resolve) => {
       const timeoutMs = this.options.requestTimeoutMs ?? 30_000;
       const timeout = setTimeout(() => {
         this.pending.delete(id);
-        resolve(err({ code: "NOVA-NET001", message: `MCP request '${id}' timed out after ${timeoutMs}ms.`, retryable: true }));
+        resolve(
+          err({
+            code: "NOVA-NET001",
+            message: `MCP request '${id}' timed out after ${timeoutMs}ms.`,
+            retryable: true,
+          }),
+        );
       }, timeoutMs);
 
       this.pending.set(id, {
         resolve: (value) => resolve(ok(value)),
-        reject: (error) => resolve(err({ code: "NOVA-NET001", message: error.message, retryable: true })),
+        reject: (error) =>
+          resolve(err({ code: "NOVA-NET001", message: error.message, retryable: true })),
         timeout,
       });
 
@@ -166,9 +186,15 @@ export class McpConnection {
     });
   }
 
-  private async requestOverHttp(payload: Readonly<Record<string, unknown>>): Promise<Result<unknown>> {
+  private async requestOverHttp(
+    payload: Readonly<Record<string, unknown>>,
+  ): Promise<Result<unknown>> {
     if (this.options.plan.transport !== "streamable-http") {
-      return err({ code: "NOVA-TL002", message: "Connection plan does not use streamable-http.", retryable: false });
+      return err({
+        code: "NOVA-TL002",
+        message: "Connection plan does not use streamable-http.",
+        retryable: false,
+      });
     }
     const fetcher = this.options.fetcher ?? fetch;
     const headers = new Headers({ "content-type": "application/json", accept: "application/json" });

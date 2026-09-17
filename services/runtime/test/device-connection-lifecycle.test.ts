@@ -11,7 +11,11 @@ describe("DeviceConnectionLifecycle", () => {
 
     expect(lifecycle.currentState()).toBe("authenticating");
 
-    const authenticated = lifecycle.authenticate(candidate, new Map([["phone-1", "correct-key"]]), "correct-key");
+    const authenticated = lifecycle.authenticate(
+      candidate,
+      new Map([["phone-1", "correct-key"]]),
+      "correct-key",
+    );
 
     expect(authenticated).toBe(true);
     expect(lifecycle.currentState()).toBe("connected_healthy");

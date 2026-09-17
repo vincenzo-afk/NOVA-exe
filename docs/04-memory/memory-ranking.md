@@ -41,7 +41,7 @@ Each candidate result is scored on a weighted combination of:
 The final composite score from the weighted factors above is normalized
 to `0.0`–`1.0` per result. Two or more top-ranked candidates are
 **equally plausible** — the exact condition
-`docs/05-ai/deterministic-first.md` and `docs/05-ai/
+docs/05-ai/deterministic-first.md and docs/05-ai/
 ambiguity-resolution.md` both reference without independently defining —
 when the gap between the top result's score and the next result's score
 is less than **0.1** (10 percentage points on the normalized scale).

@@ -30,7 +30,7 @@ Resource Manager's lock model (`docs/03-runtime/resource-manager.md`)
 already prevents the concurrent-write races serializable isolation would
 otherwise be needed to catch; using the database's strongest isolation
 level unconditionally would cost latency budget (`docs/39-performance-
-budgets/latency-targets.md`) the actual concurrency pattern doesn't
+budgets/latency-targets.md) the actual concurrency pattern doesn't
 require.
 
 ## Relationship to backup consistency

@@ -7,7 +7,9 @@ import { FileMetricStore, MetricsRegistry } from "../src/metrics-registry.js";
 const temporaryDirectories: string[] = [];
 
 afterEach(async () => {
-  await Promise.all(temporaryDirectories.splice(0).map((directory) => rm(directory, { recursive: true })));
+  await Promise.all(
+    temporaryDirectories.splice(0).map((directory) => rm(directory, { recursive: true })),
+  );
 });
 
 describe("MetricsRegistry", () => {
@@ -23,9 +25,18 @@ describe("MetricsRegistry", () => {
 
   it("sums a counter's recorded increments", () => {
     const registry = new MetricsRegistry();
-    registry.record("nova.tool.invocation_count", "counter", 1, { tool_id: "web_search", result: "success" });
-    registry.record("nova.tool.invocation_count", "counter", 1, { tool_id: "web_search", result: "success" });
-    registry.record("nova.tool.invocation_count", "counter", 1, { tool_id: "web_search", result: "failure" });
+    registry.record("nova.tool.invocation_count", "counter", 1, {
+      tool_id: "web_search",
+      result: "success",
+    });
+    registry.record("nova.tool.invocation_count", "counter", 1, {
+      tool_id: "web_search",
+      result: "success",
+    });
+    registry.record("nova.tool.invocation_count", "counter", 1, {
+      tool_id: "web_search",
+      result: "failure",
+    });
 
     const results = registry.query("nova.tool.invocation_count");
     expect(results).toContainEqual({
@@ -43,11 +54,21 @@ describe("MetricsRegistry", () => {
   it("computes count/sum/min/max/avg for a histogram", () => {
     const registry = new MetricsRegistry();
     for (const value of [10, 20, 30]) {
-      registry.record("nova.retrieval.query_latency.ms", "histogram", value, { branch: "semantic" });
+      registry.record("nova.retrieval.query_latency.ms", "histogram", value, {
+        branch: "semantic",
+      });
     }
 
     expect(registry.query("nova.retrieval.query_latency.ms")).toEqual([
-      { labels: { branch: "semantic" }, kind: "histogram", count: 3, sum: 60, min: 10, max: 30, avg: 20 },
+      {
+        labels: { branch: "semantic" },
+        kind: "histogram",
+        count: 3,
+        sum: 60,
+        min: 10,
+        max: 30,
+        avg: 20,
+      },
     ]);
   });
 
@@ -63,7 +84,9 @@ describe("MetricsRegistry", () => {
     const registry = new MetricsRegistry();
     registry.record("nova.task.stuck_count", "gauge", 1);
 
-    expect(() => registry.record("nova.task.stuck_count", "counter", 1)).toThrow(/already recorded/);
+    expect(() => registry.record("nova.task.stuck_count", "counter", 1)).toThrow(
+      /already recorded/,
+    );
   });
 
   it("returns an empty array for a metric name that was never recorded", () => {
@@ -80,8 +103,14 @@ describe("FileMetricStore", () => {
     const store = new FileMetricStore(path);
     const registry = new MetricsRegistry({ sink: store });
 
-    registry.record("nova.tool.invocation_count", "counter", 1, { tool_id: "web_search", result: "success" });
-    registry.record("nova.tool.invocation_count", "counter", 1, { tool_id: "web_search", result: "success" });
+    registry.record("nova.tool.invocation_count", "counter", 1, {
+      tool_id: "web_search",
+      result: "success",
+    });
+    registry.record("nova.tool.invocation_count", "counter", 1, {
+      tool_id: "web_search",
+      result: "success",
+    });
 
     const reloaded = new FileMetricStore(path);
     expect(reloaded.query("nova.tool.invocation_count")).toEqual([
