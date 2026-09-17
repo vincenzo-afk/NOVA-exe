@@ -8,6 +8,7 @@ import type {
   Verifier,
 } from "./orchestration.js";
 import type { TaskManager, TaskRecord } from "./task-manager.js";
+import { computeExecutionGroups } from "./execution-scheduler.js";
 
 export interface TaskCheckpointPersistence {
   append(record: TaskRecord, status: "Created" | "Valid"): Promise<Result<void>>;
@@ -44,6 +45,43 @@ function buildReplanGoal(
       "Produce a plan that achieves the original goal without repeating this failure; " +
       "prefer a genuinely different approach or tool over retrying the identical action.]",
   ].join("\n");
+}
+
+interface StepEntryOutcome {
+  readonly kind: "entry";
+  readonly entry: StepVerdictEntry;
+}
+interface StepFailureOutcome {
+  readonly kind: "step_failure";
+  readonly step: ExecutionStep;
+  readonly reason: string;
+  /** Present when the step *did* execute and get a verdict, just a "failed" one — still worth recording in the audit trail, distinct from an execution error, which never produced a verdict at all. */
+  readonly entry?: StepVerdictEntry;
+}
+interface StepVerifierErrorOutcome {
+  readonly kind: "verifier_error";
+  readonly errorInfo: Readonly<Record<string, unknown>>;
+}
+type StepOutcome = StepEntryOutcome | StepFailureOutcome | StepVerifierErrorOutcome;
+
+async function runStep(
+  step: ExecutionStep,
+  executor: Executor,
+  verifier: Verifier,
+): Promise<StepOutcome> {
+  const execution = await executor.execute(step);
+  if (!execution.ok) {
+    return { kind: "step_failure", step, reason: `Execution error: ${execution.error.message}` };
+  }
+  const verdict = verifier.verify(step, execution.value);
+  if (!verdict.ok) {
+    return { kind: "verifier_error", errorInfo: { phase: "verification", error: verdict.error } };
+  }
+  const entry: StepVerdictEntry = { step, result: execution.value, verdict: verdict.value };
+  if (verdict.value.outcome === "failed") {
+    return { kind: "step_failure", step, reason: verdict.value.explanation, entry };
+  }
+  return { kind: "entry", entry };
 }
 
 export class RuntimeTaskCoordinator {
@@ -256,27 +294,37 @@ export class RuntimeTaskCoordinator {
       finalAttemptVerdicts = [];
       let stepFailure: { readonly step: ExecutionStep; readonly reason: string } | undefined;
 
-      for (const step of remainingSteps) {
-        const execution = await this.options.executor.execute(step);
-        if (!execution.ok) {
-          stepFailure = { step, reason: `Execution error: ${execution.error.message}` };
-          break;
-        }
-        const verdict = this.options.verifier.verify(step, execution.value);
-        if (!verdict.ok) return this.fail(taskId, { phase: "verification", error: verdict.error });
+      const groups = computeExecutionGroups(remainingSteps);
+      if (!groups.ok) return this.fail(taskId, { phase: "scheduling", error: groups.error });
 
-        const entry: StepVerdictEntry = { step, result: execution.value, verdict: verdict.value };
-        auditLog.push(entry);
-        finalAttemptVerdicts.push(entry);
+      groupLoop: for (const group of groups.value) {
+        // Independent steps within a group run concurrently; a structural
+        // Verifier error (as opposed to a step failing verification) is still
+        // an immediate hard stop for the whole task, matching the previous
+        // sequential behavior — it means the Verifier itself is broken, not
+        // that this one step didn't pan out.
+        const settled = await Promise.all(
+          group.map((step) => runStep(step, this.options.executor, this.options.verifier)),
+        );
 
-        if (verdict.value.outcome === "failed") {
-          stepFailure = { step, reason: verdict.value.explanation };
-          break;
+        const verifierError = settled.find(
+          (outcome): outcome is StepVerifierErrorOutcome => outcome.kind === "verifier_error",
+        );
+        if (verifierError) return this.fail(taskId, verifierError.errorInfo);
+
+        for (const outcome of settled) {
+          const entry = outcome.kind === "entry" ? outcome.entry : outcome.kind === "step_failure" ? outcome.entry : undefined;
+          if (entry) {
+            auditLog.push(entry);
+            finalAttemptVerdicts.push(entry);
+          }
         }
-        // "unverified" (as opposed to "failed") is a weaker, more ambiguous
-        // signal — the existing overall-outcome priority (Failed > Unverified
-        // > Completed) already surfaces it without this loop needing to treat
-        // it as a hard stop the way a confirmed failure is.
+
+        const failure = settled.find((outcome): outcome is StepFailureOutcome => outcome.kind === "step_failure");
+        if (failure) {
+          stepFailure = { step: failure.step, reason: failure.reason };
+          break groupLoop;
+        }
       }
 
       if (!stepFailure) break;

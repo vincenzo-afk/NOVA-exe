@@ -37,6 +37,8 @@ interface RawStepCandidate {
   readonly action_id?: unknown;
   readonly capability_id?: unknown;
   readonly parameters?: unknown;
+  /** 0-based indices into the same JSON array this candidate is part of — how the model expresses "this step needs that other step's result first" without knowing the real, coordinator-generated step_id in advance. */
+  readonly depends_on_indices?: unknown;
 }
 
 export function createLlmPlanGenerator(
@@ -73,12 +75,33 @@ export function createLlmPlanGenerator(
     }
 
     const steps: ExecutionStep[] = [];
+    const stepIdByRawIndex = new Map<number, string>();
+    const dependsOnIndicesByStepId = new Map<string, readonly number[]>();
     raw.forEach((candidate, index) => {
       const step = groundCandidate(candidate, options.tools, goal, index, options.now ?? Date.now);
-      if (step) steps.push(step);
-      else options.logger?.warning("planner.llm.candidate_rejected", { goal, index });
+      if (step) {
+        steps.push(step);
+        stepIdByRawIndex.set(index, step.step_id);
+        const dependsOnIndices = extractDependsOnIndices(candidate);
+        if (dependsOnIndices.length > 0) dependsOnIndicesByStepId.set(step.step_id, dependsOnIndices);
+      } else {
+        options.logger?.warning("planner.llm.candidate_rejected", { goal, index });
+      }
     });
-    return steps;
+
+    // Resolve index-based dependencies to real step_ids only now that every
+    // candidate has been grounded (or rejected) and has its final step_id —
+    // a raw index referring to a rejected candidate, itself, or nothing in
+    // range is dropped rather than left to produce a broken plan.
+    const resolvedSteps = steps.map((step) => {
+      const rawIndices = dependsOnIndicesByStepId.get(step.step_id);
+      if (!rawIndices || rawIndices.length === 0) return step;
+      const dependsOn = rawIndices
+        .map((rawIndex) => stepIdByRawIndex.get(rawIndex))
+        .filter((id): id is string => id !== undefined && id !== step.step_id);
+      return dependsOn.length > 0 ? { ...step, depends_on: dependsOn } : step;
+    });
+    return resolvedSteps;
   };
 }
 
@@ -113,8 +136,10 @@ function buildSystemPrompt(catalog: readonly CatalogEntry[]): string {
     "You are NOVA's task planner. Given a user goal, produce a plan as a JSON array of steps.",
     "You may ONLY use resolved_tool_id/action_id pairs from this exact catalog — never invent a tool or action that isn't listed:",
     catalogJson,
-    "Respond with ONLY a JSON array (no prose, no markdown fences). Each element must have exactly these fields:",
-    '{"capability_id": string, "resolved_tool_id": string (must match the catalog), "action_id": string (must match the catalog), "parameters": object (matching that action\'s input_schema)}',
+    "Respond with ONLY a JSON array (no prose, no markdown fences). Each element must have these fields:",
+    '{"capability_id": string, "resolved_tool_id": string (must match the catalog), "action_id": string (must match the catalog), "parameters": object (matching that action\'s input_schema), "depends_on_indices": number[] (optional)}',
+    "Steps with no genuine data or ordering dependency between them should be left independent (omit depends_on_indices, or leave it empty) — independent steps run concurrently, which is faster and preferred whenever the goal allows it.",
+    "Only set depends_on_indices when a step genuinely needs the actual result of an earlier step in this same array (e.g., a file path or id produced by that step) — reference the other step by its 0-based position in this array, not by any name.",
     "If no catalog entry can accomplish the goal, respond with an empty array: []",
   ].join("\n\n");
 }
@@ -131,6 +156,13 @@ function parseJsonArray(text: string): readonly unknown[] | undefined {
   } catch {
     return undefined;
   }
+}
+
+function extractDependsOnIndices(candidate: unknown): readonly number[] {
+  if (typeof candidate !== "object" || candidate === null) return [];
+  const raw = candidate as RawStepCandidate;
+  if (!Array.isArray(raw.depends_on_indices)) return [];
+  return raw.depends_on_indices.filter((value): value is number => typeof value === "number" && Number.isInteger(value));
 }
 
 function groundCandidate(

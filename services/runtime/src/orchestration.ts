@@ -34,6 +34,16 @@ export interface ExecutionStep {
   readonly required_locks: readonly string[];
   readonly timeout_ms: number;
   readonly confirmation_status: "not_required" | "pending" | "approved" | "denied";
+  /**
+   * Other steps in the *same plan* (by step_id) that must complete and pass
+   * verification before this one may start. Omitted or empty means this step
+   * has no prerequisites within the plan. This is what lets the coordinator
+   * (`runtime-task-coordinator.ts`'s `computeExecutionWaves`) run genuinely
+   * independent steps concurrently instead of always executing one giant
+   * plan strictly in list order regardless of whether steps actually depend
+   * on each other.
+   */
+  readonly depends_on?: readonly string[];
 }
 
 export interface ExecutionEvidence {
@@ -99,6 +109,7 @@ const executionStepSchema = z.object({
   required_locks: z.array(z.string()),
   timeout_ms: z.number().int().positive(),
   confirmation_status: z.enum(["not_required", "pending", "approved", "denied"]),
+  depends_on: z.array(z.string()).optional(),
 });
 
 export interface PlannerDependencies {

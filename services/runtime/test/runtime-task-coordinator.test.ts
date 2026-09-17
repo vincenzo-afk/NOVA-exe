@@ -419,4 +419,59 @@ describe("RuntimeTaskCoordinator", () => {
     expect(alwaysFailingExecute).toHaveBeenCalledTimes(3);
     expect(llmPlannerCalls).toBe(2);
   });
+
+  it("executes independent steps concurrently instead of strictly one-at-a-time", async () => {
+    const tasks = new TaskManager();
+    const events: string[] = [];
+    const makeTool = (id: string, delayMs: number): ToolRegistration => ({
+      tool_id: id,
+      deterministic: true,
+      actions: {
+        run: {
+          risk_tier: "read_only",
+          verification_signal: "exit_code",
+          idempotent: true,
+          execute: async () => {
+            events.push(`${id}:start`);
+            await new Promise((resolve) => setTimeout(resolve, delayMs));
+            events.push(`${id}:end`);
+            return { status: "success" as const, evidence: { type: "exit_code" as const, value: 0 }, affected_resources: [] };
+          },
+        },
+      },
+    });
+    const toolA = makeTool("tool.a", 20);
+    const toolB = makeTool("tool.b", 5);
+    const stepA = { ...step, step_id: "step-a", resolved_tool_id: toolA.tool_id };
+    const stepB = { ...step, step_id: "step-b", resolved_tool_id: toolB.tool_id };
+
+    // Two independent steps with no depends_on between them; an llmPlanner
+    // (rather than the deterministic single-goal map) is the simplest way to
+    // hand the coordinator a genuine two-step, no-dependency plan directly.
+    const parallelPlanner = new Planner({ deterministic: new Map(), llmPlanner: async () => [stepA, stepB] });
+    const parallelCoordinator = new RuntimeTaskCoordinator({
+      tasks,
+      planner: parallelPlanner,
+      executor: new Executor(
+        new PermissionManager({ allowedToolIds: new Set([toolA.tool_id, toolB.tool_id]), confirmationTimeoutMs: 30_000 }),
+        new Map([
+          [toolA.tool_id, toolA],
+          [toolB.tool_id, toolB],
+        ]),
+      ),
+      verifier: new Verifier(),
+      events: new InMemoryCommunicationBus(),
+    });
+
+    const submitted = parallelCoordinator.submit({ goal: "run both" });
+    if (!submitted.ok) throw new Error("Task submission failed.");
+    const result = await parallelCoordinator.execute(submitted.value.task_id);
+
+    expect(result).toMatchObject({ ok: true, value: { state: "Completed" } });
+    // If steps ran strictly sequentially, tool.a (the slower one, started
+    // first in list order) would fully finish before tool.b ever started.
+    // Concurrent execution means tool.b's start (and, given its shorter
+    // delay, its end) lands before tool.a's end.
+    expect(events.indexOf("tool.b:start")).toBeLessThan(events.indexOf("tool.a:end"));
+  });
 });
