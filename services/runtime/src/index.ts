@@ -119,3 +119,6 @@ export * from "./tool-registry.js";
 export * from "./workflow-engine.js";
 export * from "./agent-message-bus.js";
 export * from "./multi-agent.js";
+export * from "./mcp-connection.js";
+export * from "./mcp-connection-manager.js";
+export * from "./mcp-tool-bridge.js";
