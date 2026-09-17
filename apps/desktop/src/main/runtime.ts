@@ -3,6 +3,7 @@ import { dirname, join, resolve } from "node:path";
 import { ObservationIndexer } from "@nova/memory";
 import { FileJsonlLogSink, StructuredLogger } from "@nova/shared";
 import {
+  BackgroundAssistant,
   Executor,
   PermissionGrantStore,
   PermissionManager,
@@ -16,6 +17,11 @@ import {
 import { openDesktopPersistence } from "./persistence.js";
 import { createDesktopCapabilityRegistry } from "./capability-catalog.js";
 import { setupLlmProvider, type LlmProviderSetup } from "./llm-provider-setup.js";
+import {
+  setupEmailCalendarProviders,
+  type EmailCalendarProviderSetup,
+} from "./email-calendar-provider-setup.js";
+import { createDesktopNotificationDestination } from "./briefing-destination.js";
 import {
   createDesktopAccessibilityDefinition,
   createDesktopAccessibilityTool,
@@ -84,6 +90,19 @@ const defaultMigrationsPath = resolve(
   "../../../../services/memory/prisma/migrations",
 );
 
+let lastEmailCalendarProviderSetup: EmailCalendarProviderSetup | undefined;
+
+/**
+ * Returns the `EmailCalendarProviderSetup` created by the most recent
+ * `createDesktopRuntime` call. `RuntimeApplication` itself only exposes
+ * the finished `EmailAssistant`/`CalendarAssistant` (it has no concept of
+ * "connect a Google account" — that's desktop-specific), so `main.ts`
+ * needs this side channel to wire the sign-in/sign-out IPC handlers.
+ */
+export function getEmailCalendarProviderSetup(): EmailCalendarProviderSetup | undefined {
+  return lastEmailCalendarProviderSetup;
+}
+
 export async function createDesktopRuntime(
   options: DesktopRuntimeOptions,
 ): Promise<RuntimeApplication> {
@@ -111,6 +130,17 @@ export async function createDesktopRuntime(
     registeredTools,
     logger,
   });
+  // Wires the email/calendar Tier-1 gap: previously EmailAssistant and
+  // CalendarAssistant were never constructed at all in the desktop build
+  // (only test doubles implemented EmailProvider/CalendarProvider
+  // anywhere in the repository), so every email/calendar operation and
+  // every "briefing sources" reference in docs/21-channels had no real
+  // backing provider regardless of what the user configured.
+  const emailCalendarSetup = setupEmailCalendarProviders({
+    userDataPath: options.userDataPath,
+    logger,
+  });
+  lastEmailCalendarProviderSetup = emailCalendarSetup;
   return new RuntimeApplication({
     configuration: desktopConfiguration,
     permissionStore: new PermissionGrantStore({ initial: desktopPermissions }, logger),
@@ -147,6 +177,17 @@ export async function createDesktopRuntime(
     memoryStore: persistence.memoryStore,
     dispose: persistence.close,
     logger,
+    emailAssistant: emailCalendarSetup.emailAssistant,
+    calendarAssistant: emailCalendarSetup.calendarAssistant,
+    ...(emailCalendarSetup.briefingSources.length === 0
+      ? {}
+      : {
+          backgroundAssistant: new BackgroundAssistant(
+            emailCalendarSetup.briefingSources,
+            createDesktopNotificationDestination(),
+            { enabled: true, logger },
+          ),
+        }),
     ...(options.windowObserverBridge === undefined
       ? {}
       : { windowObserverBridge: options.windowObserverBridge }),

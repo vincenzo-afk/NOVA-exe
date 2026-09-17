@@ -13,6 +13,8 @@ export * from "./device-pairing.js";
 export * from "./android-companion.js";
 export * from "./email-assistant.js";
 export * from "./calendar-assistant.js";
+export * from "./google-oauth.js";
+export * from "./google-workspace-provider.js";
 export * from "./channel-adapter.js";
 export * from "./background-assistant.js";
 export * from "./orchestration.js";

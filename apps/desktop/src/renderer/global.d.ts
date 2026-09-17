@@ -1021,6 +1021,26 @@ declare global {
         granted: boolean,
         confirmed: boolean,
       ) => Promise<PermissionGrant[]>;
+      syncObservers: () => Promise<{ windows: string }>;
+      syncClipboardObserver: () => Promise<{ clipboard: string }>;
+      syncNotificationObserver: () => Promise<{ notifications: string }>;
+      syncKeyboardObserver: () => Promise<{ keyboard: string }>;
+      syncMouseObserver: () => Promise<{ mouse: string }>;
+      syncBrowserObserver: () => Promise<{ browser: string }>;
+      adoptObservation: (
+        input: unknown,
+      ) => Promise<
+        | { readonly persisted: false; readonly reason: "no_task_context" }
+        | { readonly persisted: true; readonly memory_id: string; readonly task_id: string }
+      >;
+      placeTask: (input: unknown) => Promise<unknown>;
+      issueApiToken: (
+        scopes: readonly string[],
+        confirmed: boolean,
+      ) => Promise<{ token: string; scopes: readonly string[] }>;
+      getGoogleAccountStatus: () => Promise<{ connected: boolean; configured: boolean }>;
+      connectGoogleAccount: () => Promise<{ connected: true }>;
+      disconnectGoogleAccount: () => Promise<{ connected: false }>;
       getConfig: () => Promise<NovaConfiguration>;
       updateConfig: (
         section: ConfigurationSectionName,

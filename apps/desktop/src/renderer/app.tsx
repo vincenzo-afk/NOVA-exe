@@ -184,9 +184,18 @@ export const App = () => {
   const [demonstrationTaskCompleted, setDemonstrationTaskCompleted] = useState(false);
   const [configuration, setConfiguration] = useState<NovaConfiguration | null>(null);
   const [configurationError, setConfigurationError] = useState<string | null>(null);
+  const [observerSyncStatus, setObserverSyncStatus] = useState<string | null>(null);
+  const [observerSyncPending, setObserverSyncPending] = useState(false);
+  const [googleAccountStatus, setGoogleAccountStatus] = useState<{
+    connected: boolean;
+    configured: boolean;
+  } | null>(null);
+  const [googleConnectPending, setGoogleConnectPending] = useState(false);
+  const [googleConnectError, setGoogleConnectError] = useState<string | null>(null);
 
   useEffect(() => {
     void window.nova.getPermissions().then(setPermissions);
+    void window.nova.getGoogleAccountStatus().then(setGoogleAccountStatus);
     void window.nova
       .getConfig()
       .then(setConfiguration)
@@ -269,6 +278,38 @@ export const App = () => {
   const togglePermission = async (source: string, granted: boolean) => {
     const updated = await window.nova.setPermission(source, granted, true);
     setPermissions(updated);
+  };
+
+  const syncObserversNow = async () => {
+    setObserverSyncPending(true);
+    try {
+      const result = await window.nova.syncObservers();
+      setObserverSyncStatus(`Windows/applications observer: ${result.windows}.`);
+    } catch (error: unknown) {
+      setObserverSyncStatus(
+        error instanceof Error ? error.message : "Observer sync failed.",
+      );
+    } finally {
+      setObserverSyncPending(false);
+    }
+  };
+
+  const connectGoogleAccount = async () => {
+    setGoogleConnectPending(true);
+    setGoogleConnectError(null);
+    try {
+      await window.nova.connectGoogleAccount();
+      setGoogleAccountStatus(await window.nova.getGoogleAccountStatus());
+    } catch (error: unknown) {
+      setGoogleConnectError(error instanceof Error ? error.message : "Sign-in failed.");
+    } finally {
+      setGoogleConnectPending(false);
+    }
+  };
+
+  const disconnectGoogleAccount = async () => {
+    await window.nova.disconnectGoogleAccount();
+    setGoogleAccountStatus(await window.nova.getGoogleAccountStatus());
   };
 
   const loadMoreTasks = async () => {
@@ -377,7 +418,18 @@ export const App = () => {
                 providerMode={providerMode}
               />
             ) : (
-              <PermissionCenter permissions={permissions} onToggle={togglePermission} />
+              <PermissionCenter
+                googleAccountStatus={googleAccountStatus}
+                googleConnectError={googleConnectError}
+                googleConnectPending={googleConnectPending}
+                onConnectGoogle={connectGoogleAccount}
+                onDisconnectGoogle={disconnectGoogleAccount}
+                onSyncNow={syncObserversNow}
+                onToggle={togglePermission}
+                permissions={permissions}
+                syncPending={observerSyncPending}
+                syncStatus={observerSyncStatus}
+              />
             )
           ) : view === "chat" ? (
             <ChatView
@@ -575,11 +627,27 @@ const OnboardingView = ({
 };
 
 const PermissionCenter = ({
-  permissions,
+  googleAccountStatus,
+  googleConnectError,
+  googleConnectPending,
+  onConnectGoogle,
+  onDisconnectGoogle,
+  onSyncNow,
   onToggle,
+  permissions,
+  syncPending,
+  syncStatus,
 }: {
-  permissions: PermissionGrant[];
+  googleAccountStatus: { connected: boolean; configured: boolean } | null;
+  googleConnectError: string | null;
+  googleConnectPending: boolean;
+  onConnectGoogle: () => Promise<void>;
+  onDisconnectGoogle: () => Promise<void>;
+  onSyncNow: () => Promise<void>;
   onToggle: (source: string, granted: boolean) => Promise<void>;
+  permissions: PermissionGrant[];
+  syncPending: boolean;
+  syncStatus: string | null;
 }) => (
   <section className="content-column" aria-labelledby="permissions-title">
     <div className="section-kicker">First launch / Safety boundary</div>
@@ -604,6 +672,47 @@ const PermissionCenter = ({
           />
         </label>
       ))}
+    </div>
+    <div className="notice" role="note">
+      <span>!</span>
+      <div>
+        <strong>Observer sync</strong>
+        <p>
+          Grants take effect automatically, but you can force an immediate re-check — useful right
+          after changing Windows privacy settings outside NOVA.
+        </p>
+        <button disabled={syncPending} onClick={() => void onSyncNow()} type="button">
+          {syncPending ? "Syncing…" : "Sync observers now"}
+        </button>
+        {syncStatus ? <p className="muted">{syncStatus}</p> : null}
+      </div>
+    </div>
+    <div className="notice" role="note">
+      <span>!</span>
+      <div>
+        <strong>Email &amp; calendar</strong>
+        {googleAccountStatus?.configured === false ? (
+          <p>
+            Google sign-in is not configured for this build. Set{" "}
+            <code>NOVA_GOOGLE_OAUTH_CLIENT_ID</code> to enable it.
+          </p>
+        ) : googleAccountStatus?.connected ? (
+          <>
+            <p>Connected. NOVA can read and send email and manage calendar events you approve.</p>
+            <button onClick={() => void onDisconnectGoogle()} type="button">
+              Disconnect Google account
+            </button>
+          </>
+        ) : (
+          <>
+            <p>Connect a Google account to let NOVA read email, send drafts you approve, and manage calendar events.</p>
+            <button disabled={googleConnectPending} onClick={() => void onConnectGoogle()} type="button">
+              {googleConnectPending ? "Connecting…" : "Connect Google account"}
+            </button>
+          </>
+        )}
+        {googleConnectError ? <p className="muted">{googleConnectError}</p> : null}
+      </div>
     </div>
     <div className="notice" role="note">
       <span>!</span>

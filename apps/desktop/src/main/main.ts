@@ -1,7 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { app, BrowserWindow, dialog, ipcMain } from "electron";
-import type { MemorySearchInput } from "@nova/memory";
+import type {
+  MemorySearchInput,
+  ObservationIndexRequest,
+  ObservationIndexResult,
+} from "@nova/memory";
 import {
   ApiGateway,
   type ConfigurationSectionName,
@@ -56,6 +60,9 @@ import {
   type SetupStepPatch,
   type WorkspaceIdentity,
   type WorkspaceLock,
+  type DistributedPlacementInput,
+  type DistributedPlacementResult,
+  type ApiScope,
 } from "@nova/runtime";
 import {
   createMessage,
@@ -66,7 +73,7 @@ import {
   type StartupStep,
   type ShutdownStep,
 } from "@nova/shared";
-import { createDesktopRuntime } from "./runtime.js";
+import { createDesktopRuntime, getEmailCalendarProviderSetup } from "./runtime.js";
 import {
   DesktopAgentController,
   NativeDesktopAgentBridge,
@@ -926,6 +933,49 @@ ipcMain.handle("nova:task:deny-waiting-user", (_event, data) =>
   requestGateway("task.deny-waiting-user", data),
 );
 ipcMain.handle("nova:task:pause", (_event, data) => requestGateway("task.pause", data));
+
+ipcMain.handle("nova:observers:sync", () => requestGateway("observers.sync", undefined));
+ipcMain.handle("nova:observers:sync-clipboard", () =>
+  requestGateway("observers.sync.clipboard", undefined),
+);
+ipcMain.handle("nova:observers:sync-notifications", () =>
+  requestGateway("observers.sync.notifications", undefined),
+);
+ipcMain.handle("nova:observers:sync-keyboard", () =>
+  requestGateway("observers.sync.keyboard", undefined),
+);
+ipcMain.handle("nova:observers:sync-mouse", () =>
+  requestGateway("observers.sync.mouse", undefined),
+);
+ipcMain.handle("nova:observers:sync-browser", () =>
+  requestGateway("observers.sync.browser", undefined),
+);
+ipcMain.handle("nova:observation:adopt", (_event, payload: ObservationIndexRequest) =>
+  requestGateway("observation.adopt", payload),
+);
+ipcMain.handle("nova:task:place", (_event, payload: DistributedPlacementInput) =>
+  requestGateway("task.place", payload),
+);
+ipcMain.handle(
+  "nova:auth:issue-token",
+  (_event, payload: { readonly scopes: readonly ApiScope[]; readonly confirmed: boolean }) =>
+    requestGateway("auth.token.issue", payload),
+);
+
+ipcMain.handle("nova:google:status", () => ({
+  connected: getEmailCalendarProviderSetup()?.isGoogleAccountConnected() ?? false,
+  configured: getEmailCalendarProviderSetup() !== undefined,
+}));
+ipcMain.handle("nova:google:connect", async () => {
+  const setup = getEmailCalendarProviderSetup();
+  if (!setup) throw new Error("Email and calendar sign-in is not available yet.");
+  return await setup.connectGoogleAccount();
+});
+ipcMain.handle("nova:google:disconnect", () => {
+  const setup = getEmailCalendarProviderSetup();
+  setup?.disconnectGoogleAccount();
+  return { connected: false };
+});
 
 ipcMain.handle("nova:voice:start", (_event, confirmed: boolean) =>
   requestGateway("voice.start", { confirmed }),
@@ -2706,6 +2756,86 @@ const startGateway = async (): Promise<void> => {
     const result = runtimeApplication.removeMcpServer(payload.server_id, payload.confirmed);
     if (!result.ok) throw new Error(result.error.message);
     return projectMcpServerRemoval(result.value);
+  });
+  gateway.register("observers.sync", async () => {
+    if (!runtimeApplication) throw new Error("Nova runtime is not ready.");
+    const result = await runtimeApplication.syncObservers();
+    if (!result.ok) throw new Error(result.error.message);
+    return { windows: result.value };
+  });
+  gateway.register("observers.sync.clipboard", async () => {
+    if (!runtimeApplication) throw new Error("Nova runtime is not ready.");
+    const result = await runtimeApplication.syncClipboardObserver();
+    if (!result.ok) throw new Error(result.error.message);
+    return { clipboard: result.value };
+  });
+  gateway.register("observers.sync.notifications", async () => {
+    if (!runtimeApplication) throw new Error("Nova runtime is not ready.");
+    const result = await runtimeApplication.syncNotificationObserver();
+    if (!result.ok) throw new Error(result.error.message);
+    return { notifications: result.value };
+  });
+  gateway.register("observers.sync.keyboard", async () => {
+    if (!runtimeApplication) throw new Error("Nova runtime is not ready.");
+    const result = await runtimeApplication.syncKeyboardObserver();
+    if (!result.ok) throw new Error(result.error.message);
+    return { keyboard: result.value };
+  });
+  gateway.register("observers.sync.mouse", async () => {
+    if (!runtimeApplication) throw new Error("Nova runtime is not ready.");
+    const result = await runtimeApplication.syncMouseObserver();
+    if (!result.ok) throw new Error(result.error.message);
+    return { mouse: result.value };
+  });
+  gateway.register("observers.sync.browser", async () => {
+    if (!runtimeApplication) throw new Error("Nova runtime is not ready.");
+    const result = await runtimeApplication.syncBrowserObserver();
+    if (!result.ok) throw new Error(result.error.message);
+    return { browser: result.value };
+  });
+  gateway.register("observation.adopt", async (data) => {
+    if (!runtimeApplication) throw new Error("Nova runtime is not ready.");
+    const payload = data as Partial<ObservationIndexRequest> | undefined;
+    if (!payload?.event || typeof payload.event !== "object") {
+      throw new Error("An observation event payload is required.");
+    }
+    const request: ObservationIndexRequest = {
+      task_id: payload.task_id,
+      event: payload.event,
+    };
+    const result = await runtimeApplication.adoptObservation(request);
+    if (!result.ok) throw new Error(result.error.message);
+    return result.value satisfies ObservationIndexResult;
+  });
+  gateway.register("task.place", async (data) => {
+    if (!runtimeApplication) throw new Error("Nova runtime is not ready.");
+    const payload = data as Partial<DistributedPlacementInput> | undefined;
+    if (!payload?.task_id || !payload.origin_device_id) {
+      throw new Error("Task ID and origin device ID are required for placement.");
+    }
+    const input: DistributedPlacementInput = {
+      task_id: payload.task_id,
+      origin_device_id: payload.origin_device_id,
+      required_capability: payload.required_capability,
+      cross_peer_assignment_enabled: payload.cross_peer_assignment_enabled ?? false,
+      peers: payload.peers ?? [],
+    };
+    const result = runtimeApplication.placeTask(input);
+    if (!result.ok) throw new Error(result.error.message);
+    return result.value satisfies DistributedPlacementResult;
+  });
+  gateway.register("auth.token.issue", async (data) => {
+    if (!runtimeApplication) throw new Error("Nova runtime is not ready.");
+    const payload = data as { readonly scopes?: unknown; readonly confirmed?: unknown };
+    if (!Array.isArray(payload.scopes) || payload.scopes.length === 0) {
+      throw new Error("At least one API scope is required to issue a token.");
+    }
+    if (typeof payload.confirmed !== "boolean" || !payload.confirmed) {
+      throw new Error("Issuing a local API token requires explicit confirmation.");
+    }
+    const scopes = payload.scopes as readonly ApiScope[];
+    const token = runtimeApplication.issueToken(scopes);
+    return { token, scopes };
   });
   gateway.register("config.get", async () => {
     if (!runtimeApplication) throw new Error("Nova runtime is not ready.");

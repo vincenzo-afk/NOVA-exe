@@ -199,6 +199,19 @@ const novaApi = {
   getPermissions: () => ipcRenderer.invoke("nova:permissions:get"),
   setPermission: (source: string, granted: boolean, confirmed: boolean) =>
     ipcRenderer.invoke("nova:permissions:set", { source, granted, confirmed }),
+  syncObservers: () => ipcRenderer.invoke("nova:observers:sync"),
+  syncClipboardObserver: () => ipcRenderer.invoke("nova:observers:sync-clipboard"),
+  syncNotificationObserver: () => ipcRenderer.invoke("nova:observers:sync-notifications"),
+  syncKeyboardObserver: () => ipcRenderer.invoke("nova:observers:sync-keyboard"),
+  syncMouseObserver: () => ipcRenderer.invoke("nova:observers:sync-mouse"),
+  syncBrowserObserver: () => ipcRenderer.invoke("nova:observers:sync-browser"),
+  adoptObservation: (input: unknown) => ipcRenderer.invoke("nova:observation:adopt", input),
+  placeTask: (input: unknown) => ipcRenderer.invoke("nova:task:place", input),
+  issueApiToken: (scopes: readonly string[], confirmed: boolean) =>
+    ipcRenderer.invoke("nova:auth:issue-token", { scopes, confirmed }),
+  getGoogleAccountStatus: () => ipcRenderer.invoke("nova:google:status"),
+  connectGoogleAccount: () => ipcRenderer.invoke("nova:google:connect"),
+  disconnectGoogleAccount: () => ipcRenderer.invoke("nova:google:disconnect"),
   getConfig: () => ipcRenderer.invoke("nova:config:get"),
   updateConfig: (section: string, value: unknown, confirmed: boolean) =>
     ipcRenderer.invoke("nova:config:update", { section, value, confirmed }),
